@@ -6,7 +6,6 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 
 
-
 const C = {
   bg: "#020008",
   bgCard: "rgba(8,2,24,0.55)",
@@ -303,6 +302,11 @@ function Btn({ children, color = C.cyan, onClick, disabled, full, style = {} }) 
 function Onboarding({ onComplete }) {
   const [step, setStep] = useState(0);
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLogin, setIsLogin] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
   const [interests, setInterests] = useState([]);
   const [goal, setGoal] = useState("");
   const allI = ["Art","Writing","Music","Design","Entrepreneurship","Philosophy","Photography","Dance"];
@@ -328,12 +332,50 @@ function Onboarding({ onComplete }) {
 
         {step === 0 && (
           <div style={{ animation: "warpIn 0.7s ease" }}>
-            <label style={{ display: "block", textAlign: "left", color: C.textSecondary, fontSize: 11, marginBottom: 8, fontFamily: "'Space Mono', monospace", letterSpacing: "0.08em" }}>WHAT SHOULD WE CALL YOU?</label>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="Enter your name"
+            {!isLogin && (
+              <>
+                <label style={{ display: "block", textAlign: "left", color: C.textSecondary, fontSize: 11, marginBottom: 8, fontFamily: "'Space Mono', monospace", letterSpacing: "0.08em" }}>YOUR NAME</label>
+                <input value={name} onChange={e => setName(e.target.value)} placeholder="Enter your name"
+                  className="input-glow"
+                  style={{ width: "100%", padding: "14px 18px", background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14, color: C.textPrimary, fontSize: 16, fontFamily: "'Space Mono', monospace", outline: "none", boxSizing: "border-box", backdropFilter: "blur(10px)", marginBottom: 12 }}
+                />
+              </>
+            )}
+            <label style={{ display: "block", textAlign: "left", color: C.textSecondary, fontSize: 11, marginBottom: 8, fontFamily: "'Space Mono', monospace", letterSpacing: "0.08em" }}>EMAIL</label>
+            <input value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com" type="email"
+              className="input-glow"
+              style={{ width: "100%", padding: "14px 18px", background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14, color: C.textPrimary, fontSize: 16, fontFamily: "'Space Mono', monospace", outline: "none", boxSizing: "border-box", backdropFilter: "blur(10px)", marginBottom: 12 }}
+            />
+            <label style={{ display: "block", textAlign: "left", color: C.textSecondary, fontSize: 11, marginBottom: 8, fontFamily: "'Space Mono', monospace", letterSpacing: "0.08em" }}>PASSWORD</label>
+            <input value={password} onChange={e => setPassword(e.target.value)} placeholder="Min 6 characters" type="password"
               className="input-glow"
               style={{ width: "100%", padding: "14px 18px", background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14, color: C.textPrimary, fontSize: 16, fontFamily: "'Space Mono', monospace", outline: "none", boxSizing: "border-box", backdropFilter: "blur(10px)" }}
             />
-            <div style={{ marginTop: 24 }}><Btn onClick={() => name.trim() && setStep(1)} disabled={!name.trim()} full color={C.cyan}>Continue →</Btn></div>
+            {authError && <p style={{ color: C.magenta, fontSize: 11, fontFamily: "'Space Mono', monospace", marginTop: 10, textAlign: "left" }}>{authError}</p>}
+            <div style={{ marginTop: 24 }}>
+              {isLogin ? (
+                <Btn onClick={async () => {
+                  setAuthError(""); setAuthLoading(true);
+                  const { error } = await supabase.auth.signInWithPassword({ email, password });
+                  setAuthLoading(false);
+                  if (error) setAuthError(error.message);
+                  else onComplete(email.split("@")[0]);
+                }} disabled={!email.trim() || !password.trim() || authLoading} full color={C.cyan}>
+                  {authLoading ? "Signing in..." : "Sign In →"}
+                </Btn>
+              ) : (
+                <Btn onClick={() => {
+                  if (!name.trim() || !email.trim() || !password.trim()) return;
+                  setStep(1);
+                }} disabled={!name.trim() || !email.trim() || password.length < 6} full color={C.cyan}>
+                  Continue →
+                </Btn>
+              )}
+            </div>
+            <p style={{ color: C.textMuted, fontSize: 11, fontFamily: "'Space Mono', monospace", marginTop: 16, cursor: "pointer" }}
+              onClick={() => { setIsLogin(!isLogin); setAuthError(""); }}>
+              {isLogin ? "New here? Sign up" : "Already have an account? Sign in"}
+            </p>
           </div>
         )}
         {step === 1 && (
@@ -376,7 +418,21 @@ function Onboarding({ onComplete }) {
                 }}>{g}</button>);
               })}
             </div>
-            <div style={{ marginTop: 28 }}><Btn onClick={() => goal && onComplete(name)} disabled={!goal} full color={C.purple}>✦ Enter the Lab ✦</Btn></div>
+            <div style={{ marginTop: 28 }}><Btn onClick={async () => {
+                  if (!goal) return;
+                  setAuthError(""); setAuthLoading(true);
+                  const { error } = await supabase.auth.signUp({ email, password, options: { data: { name } } });
+                  setAuthLoading(false);
+                  if (error) { setAuthError(error.message); setStep(0); }
+                  else {
+                    // Update profile with interests and goal
+                    const { data: { user: u } } = await supabase.auth.getUser();
+                    if (u) {
+                      await supabase.from("profiles").update({ interests, creative_goal: goal, name }).eq("id", u.id);
+                    }
+                    onComplete(name);
+                  }
+                }} disabled={!goal || authLoading} full color={C.purple}>{authLoading ? "Creating account..." : "✦ Enter the Lab ✦"}</Btn></div>
           </div>
         )}
         <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 32 }}>
@@ -480,26 +536,83 @@ function AI() {
 // MAIN APP
 // =============================================
 export default function App() {
-  const [scr, setScr] = useState("onboard");
+  const [scr, setScr] = useState("loading");
   const [tab, setTab] = useState("home");
   const [user, setUser] = useState("");
-  const [ideas, setIdeas] = useState([{ id: 1, text: "Generative art series from plant growth fractals", time: "Yesterday", tag: "Art" },{ id: 2, text: "Podcast: conversations with creators at 2am", time: "2d ago", tag: "Biz" }]);
-  const [tasks, setTasks] = useState([{ id: 1, text: "Finish sketch series", done: false, p: true },{ id: 2, text: "Write reflection on creative block", done: false, p: true },{ id: 3, text: "Research gallery deadlines", done: true, p: false }]);
+  const [authUser, setAuthUser] = useState(null);
+  const [ideas, setIdeas] = useState([]);
+  const [tasks, setTasks] = useState([]);
   const [ni, setNi] = useState("");
   const [nt, setNt] = useState("");
   const [showS, setShowS] = useState(false);
   const [showAI, setShowAI] = useState(false);
   const [intent, setIntent] = useState("");
-  const [refs, setRefs] = useState([{ text: "Today's session opened a new dimension. Curved lines only forced different pathways.", date: "Yesterday" }]);
+  const [refs, setRefs] = useState([]);
   const [nr, setNr] = useState("");
   const [rp] = useState(RPROMPTS[Math.floor(Math.random()*RPROMPTS.length)]);
   const [dp] = useState(PROMPTS[Math.floor(Math.random()*PROMPTS.length)]);
   const [shopCat, setShopCat] = useState("All");
 
-  const togT = id => setTasks(tasks.map(t => t.id === id ? { ...t, done: !t.done } : t));
-  const addI = () => { if (!ni.trim()) return; setIdeas([{ id: Date.now(), text: ni, time: "Now", tag: "✦" }, ...ideas]); setNi(""); };
-  const addT = () => { if (!nt.trim()) return; setTasks([...tasks, { id: Date.now(), text: nt, done: false, p: false }]); setNt(""); };
-  const addR = () => { if (!nr.trim()) return; setRefs([{ text: nr, date: "Now" }, ...refs]); setNr(""); };
+  // Check auth on load
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setAuthUser(session.user);
+        setScr("app");
+        // Load profile name
+        supabase.from("profiles").select("name").eq("id", session.user.id).single()
+          .then(({ data }) => { if (data?.name) setUser(data.name); });
+      } else {
+        setScr("onboard");
+      }
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) { setAuthUser(session.user); }
+      else { setAuthUser(null); setScr("onboard"); }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Load data from Supabase when logged in
+  useEffect(() => {
+    if (!authUser) return;
+    const uid = authUser.id;
+    supabase.from("ideas").select("*").eq("user_id", uid).order("created_at", { ascending: false })
+      .then(({ data }) => { if (data) setIdeas(data.map(d => ({ id: d.id, text: d.content, time: new Date(d.created_at).toLocaleDateString(), tag: d.tag }))); });
+    supabase.from("tasks").select("*").eq("user_id", uid).order("created_at", { ascending: false })
+      .then(({ data }) => { if (data) setTasks(data.map(d => ({ id: d.id, text: d.title, done: d.status === "done", p: d.is_priority }))); });
+    supabase.from("reflections").select("*").eq("user_id", uid).order("created_at", { ascending: false })
+      .then(({ data }) => { if (data) setRefs(data.map(d => ({ id: d.id, text: d.content, date: new Date(d.created_at).toLocaleDateString() }))); });
+  }, [authUser]);
+
+  // CRUD with Supabase
+  const togT = async (id) => {
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+    setTasks(tasks.map(t => t.id === id ? { ...t, done: !t.done } : t));
+    await supabase.from("tasks").update({ status: task.done ? "pending" : "done" }).eq("id", id);
+  };
+  const addI = async () => {
+    if (!ni.trim() || !authUser) return;
+    const { data } = await supabase.from("ideas").insert({ user_id: authUser.id, content: ni, tag: "Creative" }).select().single();
+    if (data) setIdeas([{ id: data.id, text: data.content, time: "Now", tag: data.tag }, ...ideas]);
+    setNi("");
+  };
+  const addT = async () => {
+    if (!nt.trim() || !authUser) return;
+    const { data } = await supabase.from("tasks").insert({ user_id: authUser.id, title: nt }).select().single();
+    if (data) setTasks([{ id: data.id, text: data.title, done: false, p: false }, ...tasks]);
+    setNt("");
+  };
+  const addR = async () => {
+    if (!nr.trim() || !authUser) return;
+    const { data } = await supabase.from("reflections").insert({ user_id: authUser.id, content: nr, prompt: rp }).select().single();
+    if (data) setRefs([{ id: data.id, text: data.content, date: "Now" }, ...refs]);
+    setNr("");
+  };
+
+  // Loading screen
+  if (scr === "loading") return (<div style={{ background: C.bg, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}><TripBg /><div className="text-glow-pulse" style={{ color: C.cyan, fontFamily: "'Syne', sans-serif", fontSize: 20, position: "relative", zIndex: 1 }}>Loading...</div><style>{CSS}</style></div>);
 
   if (scr === "onboard") return (<div style={{ background: C.bg, minHeight: "100vh" }}><TripBg /><Onboarding onComplete={n => { setUser(n); setScr("app"); }} /><style>{CSS}</style></div>);
 
@@ -713,6 +826,9 @@ export default function App() {
           <span style={{ color: C.textMuted }}>→</span>
         </Card>
       ))}
+      <Card onClick={async () => { await supabase.auth.signOut(); setScr("onboard"); setAuthUser(null); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "14px 16px", marginBottom: 8, marginTop: 16, border: `1px solid ${C.magenta}30` }}>
+        <span style={{ color: C.magenta, fontSize: 12, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>Sign Out</span>
+      </Card>
       <p style={{ textAlign: "center", marginTop: 28, color: C.textMuted, fontSize: 9, fontFamily: "'Space Mono', monospace", lineHeight: 1.5 }}>Elevation Lab promotes creativity,<br/>productivity, and mindful living.</p>
     </div>
   );

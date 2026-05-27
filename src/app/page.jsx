@@ -994,7 +994,7 @@ export default function App() {
             </div>
           </div>
           <h2 className="title-rainbow" style={{ fontFamily: "'Syne', sans-serif", fontSize: 22, fontWeight: 800, margin: "0 0 4px" }}>{user}</h2>
-          <p style={{ color: C.textSecondary, fontSize: 11, fontFamily: "'Space Mono', monospace", margin: "0 0 10px" }}>{editBio || "Creator \xb7 Thinker \xb7 Maker"}</p>
+          <p style={{ color: C.textSecondary, fontSize: 11, fontFamily: "'Space Mono', monospace", margin: "0 0 10px" }}>{editBio || "Creator · Thinker · Maker"}</p>
           <button onClick={() => setProfilePage("edit")} style={{ background: "none", border: `1px solid ${C.cyan}40`, borderRadius: 20, padding: "5px 16px", color: C.cyan, fontSize: 10, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>Edit Profile</button>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 28 }}>
@@ -1006,19 +1006,19 @@ export default function App() {
           ))}
         </div>
         <Card onClick={() => setProfilePage("portfolio")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", marginBottom: 8 }}>
-          <span style={{ fontSize: 16 }}>{"\ud83c\udfa8"}</span>
+          <span style={{ fontSize: 16 }}>🎨</span>
           <span style={{ color: C.textPrimary, fontSize: 12, fontFamily: "'Space Mono', monospace", flex: 1 }}>Creator Portfolio</span>
-          <span style={{ color: C.textMuted }}>{"\u2192"}</span>
+          <span style={{ color: C.textMuted }}>→</span>
         </Card>
         <Card onClick={() => setProfilePage("guidelines")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", marginBottom: 8 }}>
-          <span style={{ fontSize: 16 }}>{"\ud83d\udccb"}</span>
+          <span style={{ fontSize: 16 }}>📋</span>
           <span style={{ color: C.textPrimary, fontSize: 12, fontFamily: "'Space Mono', monospace", flex: 1 }}>Community Guidelines</span>
-          <span style={{ color: C.textMuted }}>{"\u2192"}</span>
+          <span style={{ color: C.textMuted }}>→</span>
         </Card>
         <Card onClick={() => setProfilePage("about")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", marginBottom: 8 }}>
-          <span style={{ fontSize: 16 }}>{"\ud83c\udf3f"}</span>
+          <span style={{ fontSize: 16 }}>🌿</span>
           <span style={{ color: C.textPrimary, fontSize: 12, fontFamily: "'Space Mono', monospace", flex: 1 }}>About Elevation Lab</span>
-          <span style={{ color: C.textMuted }}>{"\u2192"}</span>
+          <span style={{ color: C.textMuted }}>→</span>
         </Card>
         <Card onClick={async () => { await supabase.auth.signOut(); setScr("onboard"); setAuthUser(null); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "14px 16px", marginBottom: 8, marginTop: 16, border: `1px solid ${C.magenta}30` }}>
           <span style={{ color: C.magenta, fontSize: 12, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>Sign Out</span>

@@ -557,6 +557,11 @@ export default function App() {
   const [newPost, setNewPost] = useState("");
   const [circles, setCircles] = useState([]);
   const [myCircles, setMyCircles] = useState([]);
+  const [reactionCounts, setReactionCounts] = useState({});
+  const [myReactions, setMyReactions] = useState({});
+  const [profilePage, setProfilePage] = useState(null);
+  const [editName, setEditName] = useState("");
+  const [editBio, setEditBio] = useState("");
 
   // Check auth on load
   useEffect(() => {
@@ -599,6 +604,27 @@ export default function App() {
     // Load user's joined circles
     supabase.from("circle_members").select("circle_id").eq("user_id", uid)
       .then(({ data }) => { if (data) setMyCircles(data.map(d => d.circle_id)); });
+    // Load reaction counts for all posts
+    supabase.from("reactions").select("post_id, reaction_type")
+      .then(({ data }) => {
+        if (data) {
+          const counts = {};
+          const mine = {};
+          data.forEach(r => {
+            if (!counts[r.post_id]) counts[r.post_id] = { appreciation: 0, inspiration: 0, curiosity: 0 };
+            counts[r.post_id][r.reaction_type]++;
+            if (r.user_id === uid) {
+              if (!mine[r.post_id]) mine[r.post_id] = {};
+              mine[r.post_id][r.reaction_type] = true;
+            }
+          });
+          setReactionCounts(counts);
+          setMyReactions(mine);
+        }
+      });
+    // Load profile for editing
+    supabase.from("profiles").select("*").eq("id", uid).single()
+      .then(({ data }) => { if (data) { setEditName(data.name || ""); setEditBio(data.bio || ""); } });
   }, [authUser]);
 
   // CRUD with Supabase
@@ -648,10 +674,15 @@ export default function App() {
   // React to a post
   const reactToPost = async (postId, reactionType) => {
     if (!authUser) return;
-    const { error } = await supabase.from("reactions").insert({ post_id: postId, user_id: authUser.id, reaction_type: reactionType });
-    if (error && error.code === "23505") {
-      // Already reacted, remove it
+    const alreadyReacted = myReactions[postId]?.[reactionType];
+    if (alreadyReacted) {
       await supabase.from("reactions").delete().eq("post_id", postId).eq("user_id", authUser.id).eq("reaction_type", reactionType);
+      setMyReactions(prev => { const n = {...prev}; if (n[postId]) { delete n[postId][reactionType]; } return n; });
+      setReactionCounts(prev => { const n = {...prev}; if (n[postId]) n[postId][reactionType] = Math.max(0, (n[postId][reactionType] || 1) - 1); return n; });
+    } else {
+      await supabase.from("reactions").insert({ post_id: postId, user_id: authUser.id, reaction_type: reactionType });
+      setMyReactions(prev => { const n = {...prev}; if (!n[postId]) n[postId] = {}; n[postId][reactionType] = true; return n; });
+      setReactionCounts(prev => { const n = {...prev}; if (!n[postId]) n[postId] = { appreciation: 0, inspiration: 0, curiosity: 0 }; n[postId][reactionType]++; return n; });
     }
   };
 
@@ -806,12 +837,17 @@ export default function App() {
                 <span style={{ color: C.textMuted, fontSize: 9, fontFamily: "'Space Mono', monospace", marginLeft: "auto" }}>{timeAgo}</span>
               </div>
               <p style={{ color: C.textSecondary, fontSize: 12, fontFamily: "'Space Mono', monospace", lineHeight: 1.7, margin: "0 0 14px" }}>{p.caption}</p>
-              <div style={{ display: "flex", gap: 12 }}>
-                {[{e:"🙏",t:"appreciation"},{e:"✨",t:"inspiration"},{e:"🤔",t:"curiosity"}].map(r => (
-                  <button key={r.t} onClick={() => reactToPost(p.id, r.t)} style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 12, fontFamily: "'Space Mono', monospace", padding: "4px 8px", borderRadius: 12, transition: "all 0.2s" }}>
-                    <span>{r.e}</span>
-                  </button>
-                ))}
+              <div style={{ display: "flex", gap: 8 }}>
+                {[{e:"🙏",t:"appreciation"},{e:"✨",t:"inspiration"},{e:"🤔",t:"curiosity"}].map(r => {
+                  const active = myReactions[p.id]?.[r.t];
+                  const count = reactionCounts[p.id]?.[r.t] || 0;
+                  return (
+                    <button key={r.t} onClick={() => reactToPost(p.id, r.t)} style={{ display: "flex", alignItems: "center", gap: 4, background: active ? `${C.purple}20` : "none", border: active ? `1px solid ${C.purple}40` : "1px solid transparent", color: active ? C.cyan : C.textMuted, cursor: "pointer", fontSize: 12, fontFamily: "'Space Mono', monospace", padding: "5px 10px", borderRadius: 16, transition: "all 0.3s" }}>
+                      <span>{r.e}</span>
+                      {count > 0 && <span style={{ fontSize: 10 }}>{count}</span>}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </Card>

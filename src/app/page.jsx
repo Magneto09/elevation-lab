@@ -446,7 +446,7 @@ function Onboarding({ onComplete }) {
 // =============================================
 // SESSION
 // =============================================
-function Session({ onClose }) {
+function Session({ onClose, onSave }) {
   const [type, setType] = useState(null);
   const [tl, setTl] = useState(0);
   const [run, setRun] = useState(false);
@@ -469,7 +469,7 @@ function Session({ onClose }) {
         <h2 style={{ fontFamily: "'Syne', sans-serif", color: C.textPrimary, fontSize: 22, fontWeight: 700 }}>Session Complete</h2>
       </div>
       <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Log your visions..." className="input-glow" style={{ width: "100%", minHeight: 120, padding: 16, background: "rgba(8,2,24,0.5)", border: `1px solid ${C.border}`, borderRadius: 14, color: C.textPrimary, fontSize: 13, fontFamily: "'Space Mono', monospace", resize: "vertical", outline: "none", boxSizing: "border-box" }} />
-      <div style={{ marginTop: 16 }}><Btn onClick={onClose} full color={C.cyan}>Save & Close</Btn></div>
+      <div style={{ marginTop: 16 }}><Btn onClick={() => { if (onSave) onSave(ss[type].l, ss[type].d / 60, notes); onClose(); }} full color={C.cyan}>Save & Close</Btn></div>
     </div>
   );
   if (type === null) return (
@@ -552,6 +552,11 @@ export default function App() {
   const [rp] = useState(RPROMPTS[Math.floor(Math.random()*RPROMPTS.length)]);
   const [dp] = useState(PROMPTS[Math.floor(Math.random()*PROMPTS.length)]);
   const [shopCat, setShopCat] = useState("All");
+  const [sessionCount, setSessionCount] = useState(0);
+  const [posts, setPosts] = useState([]);
+  const [newPost, setNewPost] = useState("");
+  const [circles, setCircles] = useState([]);
+  const [myCircles, setMyCircles] = useState([]);
 
   // Check auth on load
   useEffect(() => {
@@ -583,6 +588,17 @@ export default function App() {
       .then(({ data }) => { if (data) setTasks(data.map(d => ({ id: d.id, text: d.title, done: d.status === "done", p: d.is_priority }))); });
     supabase.from("reflections").select("*").eq("user_id", uid).order("created_at", { ascending: false })
       .then(({ data }) => { if (data) setRefs(data.map(d => ({ id: d.id, text: d.content, date: new Date(d.created_at).toLocaleDateString() }))); });
+    supabase.from("sessions").select("id").eq("user_id", uid)
+      .then(({ data }) => { if (data) setSessionCount(data.length); });
+    // Load all posts from all users for community feed
+    supabase.from("posts").select("*, profiles(name)").order("created_at", { ascending: false }).limit(20)
+      .then(({ data }) => { if (data) setPosts(data); });
+    // Load circles from database
+    supabase.from("circles").select("*").order("member_count", { ascending: false })
+      .then(({ data }) => { if (data) setCircles(data); });
+    // Load user's joined circles
+    supabase.from("circle_members").select("circle_id").eq("user_id", uid)
+      .then(({ data }) => { if (data) setMyCircles(data.map(d => d.circle_id)); });
   }, [authUser]);
 
   // CRUD with Supabase
@@ -609,6 +625,34 @@ export default function App() {
     const { data } = await supabase.from("reflections").insert({ user_id: authUser.id, content: nr, prompt: rp }).select().single();
     if (data) setRefs([{ id: data.id, text: data.content, date: "Now" }, ...refs]);
     setNr("");
+  };
+
+  // Post to community feed
+  const addPost = async () => {
+    if (!newPost.trim() || !authUser) return;
+    const { data } = await supabase.from("posts").insert({ user_id: authUser.id, caption: newPost, post_type: "thought" }).select("*, profiles(name)").single();
+    if (data) setPosts([data, ...posts]);
+    setNewPost("");
+  };
+  // Join/leave circle
+  const toggleCircle = async (circleId) => {
+    if (!authUser) return;
+    if (myCircles.includes(circleId)) {
+      await supabase.from("circle_members").delete().eq("circle_id", circleId).eq("user_id", authUser.id);
+      setMyCircles(myCircles.filter(id => id !== circleId));
+    } else {
+      await supabase.from("circle_members").insert({ circle_id: circleId, user_id: authUser.id });
+      setMyCircles([...myCircles, circleId]);
+    }
+  };
+  // React to a post
+  const reactToPost = async (postId, reactionType) => {
+    if (!authUser) return;
+    const { error } = await supabase.from("reactions").insert({ post_id: postId, user_id: authUser.id, reaction_type: reactionType });
+    if (error && error.code === "23505") {
+      // Already reacted, remove it
+      await supabase.from("reactions").delete().eq("post_id", postId).eq("user_id", authUser.id).eq("reaction_type", reactionType);
+    }
   };
 
   // Loading screen
@@ -736,26 +780,43 @@ export default function App() {
   const renderFeed = () => (
     <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.5s" }}>
       <h2 className="title-rainbow" style={{ fontFamily: "'Syne', sans-serif", fontSize: 24, fontWeight: 800, marginBottom: 20 }}>Creative Feed</h2>
-      {FEED.map((p, i) => (
-        <Card key={i} style={{ marginBottom: 16, overflow: "hidden" }}>
-          <div style={{ height: 170, background: `linear-gradient(${135 + i * 30}deg, hsla(${i*90},100%,50%,0.12), hsla(${i*90+60},100%,50%,0.08), hsla(${i*90+120},100%,50%,0.05))`, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-            {/* Animated concentric rings */}
-            {[0,1,2].map(r => (<div key={r} style={{ position: "absolute", width: 120-r*30, height: 120-r*30, borderRadius: "50%", border: `1px solid hsla(${(i*90+r*60+Date.now()*0.01)%360},100%,60%,0.08)`, animation: `rotateSlow ${15+r*5}s linear infinite ${r%2===0?'':'reverse'}` }} />))}
-            <span style={{ color: C.textMuted, fontSize: 11, fontFamily: "'Space Mono', monospace", zIndex: 1, textShadow: `0 0 10px ${C.purple}50` }}>{p.type === "music" ? "♫ Audio" : p.type === "poetry" ? "✦ Writing" : "◐ Artwork"}</span>
-          </div>
-          <div style={{ padding: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-              <span style={{ fontSize: 22, filter: `drop-shadow(0 0 8px ${C.purple}60)` }}>{p.avatar}</span>
-              <span style={{ color: C.textPrimary, fontSize: 12, fontWeight: 700, fontFamily: "'Syne', sans-serif" }}>{p.user}</span>
-              <span style={{ color: C.textMuted, fontSize: 9, fontFamily: "'Space Mono', monospace", marginLeft: "auto" }}>{p.time}</span>
+      {/* Create a post */}
+      <Card intense style={{ padding: 16, marginBottom: 20 }}>
+        <textarea value={newPost} onChange={e => setNewPost(e.target.value)} placeholder="Share something creative with the community..." rows={3} className="input-glow" style={{ width: "100%", padding: 0, background: "transparent", border: "none", color: C.textPrimary, fontSize: 12, fontFamily: "'Space Mono', monospace", resize: "none", outline: "none", boxSizing: "border-box", lineHeight: 1.7 }} />
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
+          <Btn onClick={addPost} disabled={!newPost.trim()} color={C.magenta} style={{ padding: "8px 20px", fontSize: 11 }}>✦ Post</Btn>
+        </div>
+      </Card>
+      {/* Posts from all users */}
+      {posts.length === 0 && (
+        <div style={{ textAlign: "center", padding: 40 }}>
+          <p style={{ color: C.textMuted, fontSize: 12, fontFamily: "'Space Mono', monospace" }}>No posts yet. Be the first to share!</p>
+        </div>
+      )}
+      {posts.map((p, i) => {
+        const hue = (i * 70) % 360;
+        const authorName = p.profiles?.name || "Anonymous";
+        const timeAgo = new Date(p.created_at).toLocaleDateString();
+        return (
+          <Card key={p.id} style={{ marginBottom: 16, overflow: "hidden" }}>
+            <div style={{ padding: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: "50%", background: `hsla(${hue},80%,50%,0.2)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: `hsl(${hue},80%,70%)`, fontFamily: "'Syne', sans-serif", fontWeight: 700 }}>{authorName[0]?.toUpperCase()}</div>
+                <span style={{ color: C.textPrimary, fontSize: 12, fontWeight: 700, fontFamily: "'Syne', sans-serif" }}>{authorName}</span>
+                <span style={{ color: C.textMuted, fontSize: 9, fontFamily: "'Space Mono', monospace", marginLeft: "auto" }}>{timeAgo}</span>
+              </div>
+              <p style={{ color: C.textSecondary, fontSize: 12, fontFamily: "'Space Mono', monospace", lineHeight: 1.7, margin: "0 0 14px" }}>{p.caption}</p>
+              <div style={{ display: "flex", gap: 12 }}>
+                {[{e:"🙏",t:"appreciation"},{e:"✨",t:"inspiration"},{e:"🤔",t:"curiosity"}].map(r => (
+                  <button key={r.t} onClick={() => reactToPost(p.id, r.t)} style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 12, fontFamily: "'Space Mono', monospace", padding: "4px 8px", borderRadius: 12, transition: "all 0.2s" }}>
+                    <span>{r.e}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-            <p style={{ color: C.textSecondary, fontSize: 11, fontFamily: "'Space Mono', monospace", lineHeight: 1.6, margin: "0 0 12px" }}>{p.caption}</p>
-            <div style={{ display: "flex", gap: 16 }}>
-              {Object.entries(p.rx).map(([e,c]) => (<button key={e} style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 11, fontFamily: "'Space Mono', monospace", transition: "all 0.2s" }}><span>{e}</span><span>{c}</span></button>))}
-            </div>
-          </div>
-        </Card>
-      ))}
+          </Card>
+        );
+      })}
     </div>
   );
 
@@ -763,16 +824,23 @@ export default function App() {
     <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.5s" }}>
       <h2 className="title-rainbow" style={{ fontFamily: "'Syne', sans-serif", fontSize: 24, fontWeight: 800, marginBottom: 4 }}>Creative Circles</h2>
       <p style={{ color: C.textMuted, fontSize: 11, fontFamily: "'Space Mono', monospace", marginBottom: 24 }}>Find your creative tribe</p>
-      {CIRCLES.map((c, i) => {
+      {circles.length === 0 && (
+        <div style={{ textAlign: "center", padding: 40 }}>
+          <p style={{ color: C.textMuted, fontSize: 12, fontFamily: "'Space Mono', monospace" }}>Loading circles...</p>
+        </div>
+      )}
+      {circles.map((c, i) => {
         const hue = i * 60;
+        const joined = myCircles.includes(c.id);
+        const gradients = [`linear-gradient(135deg,${C.purple},${C.magenta})`,`linear-gradient(135deg,${C.gold},${C.orange})`,`linear-gradient(135deg,${C.cyan},${C.purple})`,`linear-gradient(135deg,${C.magenta},${C.orange})`,`linear-gradient(135deg,${C.cyan},${C.lime})`,`linear-gradient(135deg,${C.gold},${C.magenta})`];
         return (
-          <Card key={i} style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 18px", marginBottom: 10 }}>
-            <div style={{ width: 48, height: 48, borderRadius: 14, background: c.g, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0, boxShadow: `0 0 20px hsla(${hue},100%,60%,0.25)` }}>{c.emoji}</div>
+          <Card key={c.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 18px", marginBottom: 10 }}>
+            <div style={{ width: 48, height: 48, borderRadius: 14, background: gradients[i % 6], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0, boxShadow: `0 0 20px hsla(${hue},100%,60%,0.25)` }}>{c.emoji || "🎨"}</div>
             <div style={{ flex: 1 }}>
               <div style={{ color: C.textPrimary, fontSize: 13, fontWeight: 700, fontFamily: "'Syne', sans-serif" }}>{c.name}</div>
-              <div style={{ color: C.textMuted, fontSize: 10, fontFamily: "'Space Mono', monospace" }}>{c.members.toLocaleString()} members</div>
+              <div style={{ color: C.textMuted, fontSize: 10, fontFamily: "'Space Mono', monospace" }}>{c.description || ""}</div>
             </div>
-            <Btn color={`hsl(${hue},100%,60%)`} style={{ padding: "6px 16px", fontSize: 10, borderRadius: 20 }}>Join</Btn>
+            <Btn onClick={() => toggleCircle(c.id)} color={joined ? C.textMuted : `hsl(${hue},100%,60%)`} style={{ padding: "6px 16px", fontSize: 10, borderRadius: 20 }}>{joined ? "Joined" : "Join"}</Btn>
           </Card>
         );
       })}
@@ -813,7 +881,7 @@ export default function App() {
         <p style={{ color: C.textSecondary, fontSize: 11, fontFamily: "'Space Mono', monospace" }}>Creator · Thinker · Maker</p>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 28 }}>
-        {[{ l: "Ideas", v: ideas.length, c: C.gold },{ l: "Sessions", v: 7, c: C.cyan },{ l: "Streak", v: "4d", c: C.magenta }].map((s,i) => (
+        {[{ l: "Ideas", v: ideas.length, c: C.gold },{ l: "Sessions", v: sessionCount, c: C.cyan },{ l: "Circles", v: myCircles.length, c: C.magenta }].map((s,i) => (
           <Card key={i} style={{ textAlign: "center", padding: "16px 8px" }}>
             <div className="text-glow-pulse" style={{ color: s.c, fontSize: 22, fontWeight: 800, fontFamily: "'Syne', sans-serif" }}>{s.v}</div>
             <div style={{ color: C.textMuted, fontSize: 9, fontFamily: "'Space Mono', monospace", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.1em" }}>{s.l}</div>
@@ -926,7 +994,11 @@ export default function App() {
         <NTab icon={Icons.Book} label="Reflect" id="reflect" />
         <NTab icon={Icons.Settings} label="Profile" id="profile" />
       </div>
-      {showS && <Modal title="✦ Creative Session" onClose={() => setShowS(false)}><Session onClose={() => setShowS(false)} /></Modal>}
+      {showS && <Modal title="✦ Creative Session" onClose={() => setShowS(false)}><Session onClose={() => setShowS(false)} onSave={async (type, mins, notes) => {
+        if (!authUser) return;
+        await supabase.from("sessions").insert({ user_id: authUser.id, session_type: type, duration_minutes: mins, notes });
+        setSessionCount(prev => prev + 1);
+      }} /></Modal>}
       {showAI && <Modal title="🔮 AI Assistant" onClose={() => setShowAI(false)}><div style={{ height: 420 }}><AI /></div></Modal>}
       <style>{CSS}</style>
     </div>

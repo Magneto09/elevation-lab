@@ -1,0 +1,22 @@
+{
+  "name": "Elevation Lab",
+  "short_name": "Elevate",
+  "description": "Elevate your mind. Create something real.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020008",
+  "theme_color": "#00FFCC",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

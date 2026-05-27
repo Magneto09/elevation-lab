@@ -4,7 +4,7 @@
    ============================================= */
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
-import type { User } from "@supabase/supabase-js";
+
 
 
 const C = {

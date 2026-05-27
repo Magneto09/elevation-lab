@@ -903,221 +903,127 @@ export default function App() {
     </div>
   );
 
-  const renderProfile = () => (
-    <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.5s" }}>
-      <div style={{ textAlign: "center", marginBottom: 32 }}>
-        <div style={{ position: "relative", width: 100, height: 100, margin: "0 auto 14px" }}>
-          <div className="rainbow-spin" style={{ position: "absolute", inset: 0, borderRadius: "50%", opacity: 0.6, filter: "blur(15px)" }} />
-          <div className="rainbow-spin-reverse" style={{ position: "absolute", inset: 8, borderRadius: "50%", opacity: 0.4, filter: "blur(10px)" }} />
-          <div style={{ position: "absolute", inset: 5, borderRadius: "50%", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <ElevateLogo size={40} color={C.cyan} glow style={{ filter: `drop-shadow(0 0 15px ${C.cyan}50)` }} />
-          </div>
+  const renderProfile = () => {
+    if (profilePage === "edit") return (
+      <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.5s" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+          <button onClick={() => setProfilePage(null)} style={{ background: "none", border: "none", color: C.cyan, fontSize: 18, cursor: "pointer" }}>←</button>
+          <h2 style={{ fontFamily: "'Syne', sans-serif", color: C.textPrimary, fontSize: 20, fontWeight: 700, margin: 0 }}>Edit Profile</h2>
         </div>
-        <h2 className="title-rainbow" style={{ fontFamily: "'Syne', sans-serif", fontSize: 22, fontWeight: 800, margin: "0 0 4px" }}>{user}</h2>
-        <p style={{ color: C.textSecondary, fontSize: 11, fontFamily: "'Space Mono', monospace" }}>Creator · Thinker · Maker</p>
+        <label style={{ display: "block", color: C.textSecondary, fontSize: 11, marginBottom: 6, fontFamily: "'Space Mono', monospace" }}>NAME</label>
+        <input value={editName} onChange={e => setEditName(e.target.value)} className="input-glow" style={{ width: "100%", padding: "12px 16px", background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14, color: C.textPrimary, fontSize: 14, fontFamily: "'Space Mono', monospace", outline: "none", boxSizing: "border-box", marginBottom: 16 }} />
+        <label style={{ display: "block", color: C.textSecondary, fontSize: 11, marginBottom: 6, fontFamily: "'Space Mono', monospace" }}>BIO</label>
+        <textarea value={editBio} onChange={e => setEditBio(e.target.value)} rows={4} className="input-glow" style={{ width: "100%", padding: "12px 16px", background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14, color: C.textPrimary, fontSize: 13, fontFamily: "'Space Mono', monospace", outline: "none", boxSizing: "border-box", resize: "none", marginBottom: 16 }} />
+        <label style={{ display: "block", color: C.textSecondary, fontSize: 11, marginBottom: 6, fontFamily: "'Space Mono', monospace" }}>EMAIL</label>
+        <div style={{ padding: "12px 16px", background: C.bgCard, borderRadius: 14, border: `1px solid ${C.border}`, color: C.textMuted, fontSize: 13, fontFamily: "'Space Mono', monospace", marginBottom: 24 }}>{authUser?.email || ""}</div>
+        <Btn onClick={async () => { if (!authUser) return; await supabase.from("profiles").update({ name: editName, bio: editBio }).eq("id", authUser.id); setUser(editName); setProfilePage(null); }} full color={C.cyan}>Save Changes</Btn>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 28 }}>
-        {[{ l: "Ideas", v: ideas.length, c: C.gold },{ l: "Sessions", v: sessionCount, c: C.cyan },{ l: "Circles", v: myCircles.length, c: C.magenta }].map((s,i) => (
-          <Card key={i} style={{ textAlign: "center", padding: "16px 8px" }}>
-            <div className="text-glow-pulse" style={{ color: s.c, fontSize: 22, fontWeight: 800, fontFamily: "'Syne', sans-serif" }}>{s.v}</div>
-            <div style={{ color: C.textMuted, fontSize: 9, fontFamily: "'Space Mono', monospace", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.1em" }}>{s.l}</div>
+    );
+    if (profilePage === "guidelines") return (
+      <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.5s" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+          <button onClick={() => setProfilePage(null)} style={{ background: "none", border: "none", color: C.cyan, fontSize: 18, cursor: "pointer" }}>←</button>
+          <h2 style={{ fontFamily: "'Syne', sans-serif", color: C.textPrimary, fontSize: 20, fontWeight: 700, margin: 0 }}>Community Guidelines</h2>
+        </div>
+        {[
+          { t: "Be Creative & Supportive", d: "Encourage others. Give constructive feedback." },
+          { t: "No Illegal Activity", d: "No selling, buying, or promoting illegal substances." },
+          { t: "Respect Everyone", d: "No harassment, hate speech, or discrimination." },
+          { t: "Keep It Mindful", d: "A space for creativity, productivity, and mindful living." },
+          { t: "Original Content", d: "Share your own work. Credit others when inspired." },
+          { t: "No Spam", d: "No promotional content, ads, or repetitive posts." },
+          { t: "Report Issues", d: "Flag content that violates guidelines. Reviewed in 24hrs." },
+        ].map((g, i) => (
+          <Card key={i} style={{ padding: 16, marginBottom: 10 }}>
+            <div style={{ color: C.textPrimary, fontSize: 13, fontWeight: 700, fontFamily: "'Syne', sans-serif", marginBottom: 4 }}>{g.t}</div>
+            <div style={{ color: C.textSecondary, fontSize: 11, fontFamily: "'Space Mono', monospace", lineHeight: 1.6 }}>{g.d}</div>
           </Card>
         ))}
       </div>
-      {["Creator Portfolio","Premium Features","Community Guidelines","Settings","About"].map((item,i) => (
-        <Card key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", marginBottom: 8 }}>
-          <span style={{ color: C.textPrimary, fontSize: 12, fontFamily: "'Space Mono', monospace" }}>{item}</span>
-          <span style={{ color: C.textMuted }}>→</span>
+    );
+    if (profilePage === "about") return (
+      <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.5s" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+          <button onClick={() => setProfilePage(null)} style={{ background: "none", border: "none", color: C.cyan, fontSize: 18, cursor: "pointer" }}>←</button>
+          <h2 style={{ fontFamily: "'Syne', sans-serif", color: C.textPrimary, fontSize: 20, fontWeight: 700, margin: 0 }}>About</h2>
+        </div>
+        <div style={{ textAlign: "center", marginBottom: 24 }}>
+          <ElevateBrand size={80} color={C.cyan} glow />
+          <h3 className="title-rainbow" style={{ fontFamily: "'Syne', sans-serif", fontSize: 22, fontWeight: 800, margin: "16px 0 8px" }}>Elevation Lab</h3>
+        </div>
+        <Card style={{ padding: 16, marginBottom: 12 }}>
+          <p style={{ color: C.textSecondary, fontSize: 12, fontFamily: "'Space Mono', monospace", lineHeight: 1.7, margin: 0 }}>A creative productivity platform for transforming elevated thinking into meaningful creativity.</p>
         </Card>
-      ))}
-      <Card onClick={async () => { await supabase.auth.signOut(); setScr("onboard"); setAuthUser(null); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "14px 16px", marginBottom: 8, marginTop: 16, border: `1px solid ${C.magenta}30` }}>
-        <span style={{ color: C.magenta, fontSize: 12, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>Sign Out</span>
-      </Card>
-      <p style={{ textAlign: "center", marginTop: 28, color: C.textMuted, fontSize: 9, fontFamily: "'Space Mono', monospace", lineHeight: 1.5 }}>Elevation Lab promotes creativity,<br/>productivity, and mindful living.</p>
-    </div>
-  );
-
-  // ============ SHOP ============
-  const shopCats = ["All", ...Array.from(new Set(SHOP.map(p => p.cat)))];
-  const filteredShop = shopCat === "All" ? SHOP : SHOP.filter(p => p.cat === shopCat);
-
-  const renderShop = () => (
-    <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.5s" }}>
-      <h2 className="title-rainbow" style={{ fontFamily: "'Syne', sans-serif", fontSize: 24, fontWeight: 800, marginBottom: 4 }}>Elevate Store</h2>
-      <p style={{ color: C.textMuted, fontSize: 11, fontFamily: "'Space Mono', monospace", marginBottom: 16 }}>Curated tools for the elevated lifestyle</p>
-
-      {/* Category filter */}
-      <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 12, marginBottom: 16, scrollbarWidth: "none" }}>
-        {shopCats.map((cat, i) => {
-          const active = shopCat === cat;
-          const hue = i * 50;
-          return (
-            <button key={cat} onClick={() => setShopCat(cat)} style={{
-              padding: "7px 16px", borderRadius: 20, whiteSpace: "nowrap", flexShrink: 0,
-              border: `1px solid ${active ? `hsla(${hue},100%,60%,0.6)` : C.border}`,
-              background: active ? `hsla(${hue},100%,50%,0.12)` : "transparent",
-              color: active ? `hsl(${hue},100%,75%)` : C.textMuted,
-              fontSize: 11, cursor: "pointer", fontFamily: "'Space Mono', monospace",
-              transition: "all 0.3s",
-              boxShadow: active ? `0 0 14px hsla(${hue},100%,60%,0.2)` : "none",
-              textShadow: active ? `0 0 8px hsla(${hue},100%,70%,0.5)` : "none",
-            }}>{cat}</button>
-          );
-        })}
+        <Card style={{ padding: 16, marginBottom: 12 }}>
+          <p style={{ color: C.gold, fontSize: 13, fontFamily: "'Syne', sans-serif", fontStyle: "italic", margin: "0 0 8px" }}>"Don't just get high. Get elevated."</p>
+          <p style={{ color: C.textSecondary, fontSize: 11, fontFamily: "'Space Mono', monospace", lineHeight: 1.6, margin: 0 }}>We promote creativity, productivity, art, community, and reflection.</p>
+        </Card>
+        <Card style={{ padding: 16 }}>
+          <p style={{ color: C.textMuted, fontSize: 10, fontFamily: "'Space Mono', monospace", margin: "0 0 4px" }}>Version 1.0.0 (MVP)</p>
+          <p style={{ color: C.textMuted, fontSize: 10, fontFamily: "'Space Mono', monospace", margin: "0 0 4px" }}>Website: elevatestores.in</p>
+          <p style={{ color: C.textMuted, fontSize: 10, fontFamily: "'Space Mono', monospace", margin: 0 }}>2026 Elevate. All rights reserved.</p>
+        </Card>
       </div>
-
-      {/* Product grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        {filteredShop.map((p, i) => {
-          const discount = Math.round((1 - p.price / p.orig) * 100);
-          const hue = (i * 40 + 180) % 360;
-          return (
-            <Card key={i} onClick={() => window.open(p.url, "_blank")} style={{ overflow: "hidden" }}>
-              {/* Product image */}
-              <div style={{ position: "relative", width: "100%", paddingTop: "100%", overflow: "hidden", background: `linear-gradient(${135 + i * 25}deg, hsla(${hue},70%,12%,1), hsla(${hue+60},60%,8%,1))` }}>
-                <img src={p.img} alt={p.name} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
-                {/* Badges */}
-                <div style={{ position: "absolute", top: 8, left: 8, display: "flex", gap: 4, flexWrap: "wrap" }}>
-                  {discount > 0 && (
-                    <span style={{ padding: "3px 8px", borderRadius: 8, fontSize: 9, fontWeight: 700, fontFamily: "'Space Mono', monospace", background: `${C.magenta}cc`, color: "#fff", textShadow: `0 0 6px ${C.magenta}` }}>-{discount}%</span>
-                  )}
-                  {p.popular && <span style={{ padding: "3px 8px", borderRadius: 8, fontSize: 9, fontWeight: 700, fontFamily: "'Space Mono', monospace", background: `${C.cyan}cc`, color: "#000" }}>Popular</span>}
-                  {p.isNew && <span style={{ padding: "3px 8px", borderRadius: 8, fontSize: 9, fontWeight: 700, fontFamily: "'Space Mono', monospace", background: `${C.lime}cc`, color: "#000" }}>New</span>}
-                </div>
-                {/* Rating */}
-                <div style={{ position: "absolute", bottom: 8, right: 8, padding: "3px 8px", borderRadius: 8, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", gap: 3 }}>
-                  <span style={{ color: C.gold, fontSize: 10 }}>★</span>
-                  <span style={{ color: "#fff", fontSize: 10, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>{p.rating}</span>
-                </div>
-              </div>
-              {/* Info */}
-              <div style={{ padding: "10px 12px 12px" }}>
-                <div style={{ color: C.textMuted, fontSize: 9, fontFamily: "'Space Mono', monospace", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>{p.cat}</div>
-                <div style={{ color: C.textPrimary, fontSize: 12, fontFamily: "'Syne', sans-serif", fontWeight: 700, lineHeight: 1.3, marginBottom: 8, minHeight: 32, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.name}</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ color: C.cyan, fontSize: 14, fontWeight: 800, fontFamily: "'Syne', sans-serif", textShadow: `0 0 10px ${C.cyan}30` }}>₹{p.price.toLocaleString()}</span>
-                  <span style={{ color: C.textMuted, fontSize: 10, fontFamily: "'Space Mono', monospace", textDecoration: "line-through" }}>₹{p.orig.toLocaleString()}</span>
-                </div>
-              </div>
+    );
+    if (profilePage === "portfolio") return (
+      <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.5s" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+          <button onClick={() => setProfilePage(null)} style={{ background: "none", border: "none", color: C.cyan, fontSize: 18, cursor: "pointer" }}>←</button>
+          <h2 style={{ fontFamily: "'Syne', sans-serif", color: C.textPrimary, fontSize: 20, fontWeight: 700, margin: 0 }}>Creator Portfolio</h2>
+        </div>
+        <Card intense style={{ padding: 20, textAlign: "center", marginBottom: 16 }}>
+          <p style={{ color: C.textPrimary, fontSize: 14, fontFamily: "'Syne', sans-serif", fontWeight: 700, marginBottom: 8 }}>Your Creative Showcase</p>
+          <p style={{ color: C.textSecondary, fontSize: 11, fontFamily: "'Space Mono', monospace", lineHeight: 1.6, margin: 0 }}>Your posts from the Feed appear here!</p>
+        </Card>
+        {posts.filter(p => authUser && p.user_id === authUser.id).map((p) => (
+          <Card key={p.id} style={{ padding: 14, marginBottom: 8 }}>
+            <p style={{ color: C.textPrimary, fontSize: 12, fontFamily: "'Space Mono', monospace", margin: "0 0 6px", lineHeight: 1.5 }}>{p.caption}</p>
+            <span style={{ color: C.textMuted, fontSize: 10, fontFamily: "'Space Mono', monospace" }}>{new Date(p.created_at).toLocaleDateString()}</span>
+          </Card>
+        ))}
+      </div>
+    );
+    return (
+      <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.5s" }}>
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <div style={{ position: "relative", width: 100, height: 100, margin: "0 auto 14px" }}>
+            <div className="rainbow-spin" style={{ position: "absolute", inset: 0, borderRadius: "50%", opacity: 0.6, filter: "blur(15px)" }} />
+            <div className="rainbow-spin-reverse" style={{ position: "absolute", inset: 8, borderRadius: "50%", opacity: 0.4, filter: "blur(10px)" }} />
+            <div style={{ position: "absolute", inset: 5, borderRadius: "50%", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <ElevateLogo size={40} color={C.cyan} glow style={{ filter: `drop-shadow(0 0 15px ${C.cyan}50)` }} />
+            </div>
+          </div>
+          <h2 className="title-rainbow" style={{ fontFamily: "'Syne', sans-serif", fontSize: 22, fontWeight: 800, margin: "0 0 4px" }}>{user}</h2>
+          <p style={{ color: C.textSecondary, fontSize: 11, fontFamily: "'Space Mono', monospace", margin: "0 0 10px" }}>{editBio || "Creator \xb7 Thinker \xb7 Maker"}</p>
+          <button onClick={() => setProfilePage("edit")} style={{ background: "none", border: `1px solid ${C.cyan}40`, borderRadius: 20, padding: "5px 16px", color: C.cyan, fontSize: 10, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>Edit Profile</button>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 28 }}>
+          {[{ l: "Ideas", v: ideas.length, c: C.gold },{ l: "Sessions", v: sessionCount, c: C.cyan },{ l: "Circles", v: myCircles.length, c: C.magenta }].map((s,i) => (
+            <Card key={i} style={{ textAlign: "center", padding: "16px 8px" }}>
+              <div className="text-glow-pulse" style={{ color: s.c, fontSize: 22, fontWeight: 800, fontFamily: "'Syne', sans-serif" }}>{s.v}</div>
+              <div style={{ color: C.textMuted, fontSize: 9, fontFamily: "'Space Mono', monospace", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.1em" }}>{s.l}</div>
             </Card>
-          );
-        })}
+          ))}
+        </div>
+        <Card onClick={() => setProfilePage("portfolio")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", marginBottom: 8 }}>
+          <span style={{ fontSize: 16 }}>{"\ud83c\udfa8"}</span>
+          <span style={{ color: C.textPrimary, fontSize: 12, fontFamily: "'Space Mono', monospace", flex: 1 }}>Creator Portfolio</span>
+          <span style={{ color: C.textMuted }}>{"\u2192"}</span>
+        </Card>
+        <Card onClick={() => setProfilePage("guidelines")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", marginBottom: 8 }}>
+          <span style={{ fontSize: 16 }}>{"\ud83d\udccb"}</span>
+          <span style={{ color: C.textPrimary, fontSize: 12, fontFamily: "'Space Mono', monospace", flex: 1 }}>Community Guidelines</span>
+          <span style={{ color: C.textMuted }}>{"\u2192"}</span>
+        </Card>
+        <Card onClick={() => setProfilePage("about")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", marginBottom: 8 }}>
+          <span style={{ fontSize: 16 }}>{"\ud83c\udf3f"}</span>
+          <span style={{ color: C.textPrimary, fontSize: 12, fontFamily: "'Space Mono', monospace", flex: 1 }}>About Elevation Lab</span>
+          <span style={{ color: C.textMuted }}>{"\u2192"}</span>
+        </Card>
+        <Card onClick={async () => { await supabase.auth.signOut(); setScr("onboard"); setAuthUser(null); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "14px 16px", marginBottom: 8, marginTop: 16, border: `1px solid ${C.magenta}30` }}>
+          <span style={{ color: C.magenta, fontSize: 12, fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>Sign Out</span>
+        </Card>
+        <p style={{ textAlign: "center", marginTop: 28, color: C.textMuted, fontSize: 9, fontFamily: "'Space Mono', monospace", lineHeight: 1.5 }}>Elevation Lab promotes creativity,<br/>productivity, and mindful living.</p>
       </div>
-
-      {/* Visit store link */}
-      <div style={{ marginTop: 24, textAlign: "center" }}>
-        <Btn onClick={() => window.open("https://elevatestores.in/collections/shop-all", "_blank")} color={C.purple} style={{ fontSize: 12 }}>
-          Visit Elevate Store →
-        </Btn>
-        <p style={{ color: C.textMuted, fontSize: 9, fontFamily: "'Space Mono', monospace", marginTop: 12, lineHeight: 1.5 }}>Free shipping on all orders · COD available</p>
-      </div>
-    </div>
-  );
-
-  const tabs = { home: renderHome, tasks: renderTasks, ideas: renderIdeas, feed: renderFeed, circles: renderCircles, shop: renderShop, reflect: renderReflect, profile: renderProfile };
-
-  return (
-    <div style={{ background: C.bg, minHeight: "100vh", maxWidth: 480, margin: "0 auto", position: "relative" }}>
-      <TripBg />
-      <div style={{ position: "relative", zIndex: 1 }}>{tabs[tab]?.() || renderHome()}</div>
-      <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: `linear-gradient(180deg, transparent, ${C.bg}D0 15%, ${C.bg}F8)`, backdropFilter: "blur(24px)", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-around", padding: "10px 4px", paddingBottom: "max(10px, env(safe-area-inset-bottom))", zIndex: 50 }}>
-        <NTab icon={Icons.Home} label="Home" id="home" />
-        <NTab icon={Icons.Check} label="Tasks" id="tasks" />
-        <NTab icon={Icons.Bulb} label="Ideas" id="ideas" />
-        <NTab icon={Icons.Bag} label="Shop" id="shop" />
-        <NTab icon={Icons.Users} label="Feed" id="feed" />
-        <NTab icon={Icons.Star} label="Circles" id="circles" />
-        <NTab icon={Icons.Book} label="Reflect" id="reflect" />
-        <NTab icon={Icons.Settings} label="Profile" id="profile" />
-      </div>
-      {showS && <Modal title="✦ Creative Session" onClose={() => setShowS(false)}><Session onClose={() => setShowS(false)} onSave={async (type, mins, notes) => {
-        if (!authUser) return;
-        await supabase.from("sessions").insert({ user_id: authUser.id, session_type: type, duration_minutes: mins, notes });
-        setSessionCount(prev => prev + 1);
-      }} /></Modal>}
-      {showAI && <Modal title="🔮 AI Assistant" onClose={() => setShowAI(false)}><div style={{ height: 420 }}><AI /></div></Modal>}
-      <style>{CSS}</style>
-    </div>
-  );
-}
-
-const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap');
-*{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
-body{background:#020008}
-
-/* RAINBOW ANIMATED GRADIENT TITLE */
-.title-rainbow{
-  background:linear-gradient(90deg,${C.cyan},${C.purple},${C.magenta},${C.gold},${C.cyan},${C.lime},${C.magenta},${C.cyan});
-  background-size:300% 100%;
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-  animation:rainbowShift 6s linear infinite;
-}
-
-/* RAINBOW SPINNING RING */
-.rainbow-spin{
-  background:conic-gradient(from 0deg,${C.cyan},${C.purple},${C.magenta},${C.gold},${C.lime},${C.pink},${C.cyan});
-  animation:rotateSlow 4s linear infinite;
-}
-.rainbow-spin-reverse{
-  background:conic-gradient(from 0deg,${C.magenta},${C.gold},${C.cyan},${C.purple},${C.pink},${C.lime},${C.magenta});
-  animation:rotateSlow 6s linear infinite reverse;
-}
-
-/* RAINBOW BORDER SHIMMER */
-.rainbow-border{
-  background:conic-gradient(from var(--angle,0deg),${C.cyan},${C.purple},${C.magenta},${C.gold},${C.lime},${C.pink},${C.cyan});
-  animation:borderSpin 3s linear infinite;
-}
-
-/* PULSING TEXT GLOW */
-.text-glow-pulse{
-  animation:textGlow 3s ease-in-out infinite;
-}
-
-/* BUTTON PULSE */
-.btn-pulse:hover{
-  animation:btnPulse 1.5s ease-in-out infinite;
-}
-
-/* NAV ACTIVE */
-.nav-active{
-  filter:drop-shadow(0 0 8px ${C.cyan}80) drop-shadow(0 0 20px ${C.cyan}30);
-}
-
-/* DOT ACTIVE */
-.dot-active{
-  background:linear-gradient(90deg,${C.cyan},${C.purple},${C.magenta}) !important;
-  box-shadow:0 0 15px ${C.cyan}50, 0 0 30px ${C.purple}25;
-  animation:dotPulse 2s ease-in-out infinite;
-}
-
-/* INPUT GLOW FOCUS */
-.input-glow:focus{
-  border-color:${C.cyan}60 !important;
-  box-shadow:0 0 20px ${C.cyan}15, 0 0 40px ${C.purple}08 !important;
-}
-
-/* INTENSE CARD — extra inner shimmer */
-.card-intense::before{
-  content:'';position:absolute;inset:0;border-radius:18px;
-  background:conic-gradient(from 0deg,transparent,${C.cyan}05,transparent,${C.purple}05,transparent,${C.magenta}05,transparent);
-  animation:rotateSlow 8s linear infinite;pointer-events:none;
-}
-
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
-@keyframes warpIn{from{opacity:0;transform:scale(0.95) translateY(12px);filter:blur(4px)}to{opacity:1;transform:scale(1) translateY(0);filter:blur(0)}}
-@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
-@keyframes rotateSlow{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-@keyframes floatTrip{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-10px) scale(1.05)}}
-@keyframes rainbowShift{0%{background-position:0% 50%}100%{background-position:300% 50%}}
-@keyframes borderSpin{0%{--angle:0deg;transform:rotate(0deg)}100%{--angle:360deg;transform:rotate(360deg)}}
-@keyframes textGlow{0%,100%{filter:brightness(1) drop-shadow(0 0 8px currentColor)}50%{filter:brightness(1.3) drop-shadow(0 0 20px currentColor)}}
-@keyframes btnPulse{0%,100%{box-shadow:0 0 20px var(--c,rgba(0,255,204,0.3)),0 0 40px var(--c,rgba(0,255,204,0.1))}50%{box-shadow:0 0 35px var(--c,rgba(0,255,204,0.5)),0 0 70px var(--c,rgba(0,255,204,0.2))}}
-@keyframes dotPulse{0%,100%{box-shadow:0 0 10px ${C.cyan}40}50%{box-shadow:0 0 25px ${C.cyan}70,0 0 50px ${C.purple}30}}
-
-input::placeholder,textarea::placeholder{color:${C.textMuted}}
-::-webkit-scrollbar{width:3px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:rgba(196,74,255,0.25);border-radius:4px}
-`;
+    );
+  };

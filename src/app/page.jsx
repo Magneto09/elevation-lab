@@ -7,21 +7,25 @@ import { supabase } from "@/lib/supabase";
 
 
 const C = {
-  bg: "#020008",
-  bgCard: "rgba(8,2,24,0.55)",
-  purple: "#C44AFF",
-  magenta: "#FF1493",
-  cyan: "#00FFCC",
-  gold: "#FFD700",
-  orange: "#FF4500",
-  pink: "#FF69B4",
-  lime: "#7FFF00",
-  blue: "#4488FF",
-  red: "#FF2255",
-  textPrimary: "#F4EEFF",
-  textSecondary: "#C0A8E8",
-  textMuted: "#7860B0",
-  border: "rgba(196,74,255,0.15)",
+  bg: "#F5EFE6",
+  bgCard: "rgba(255,255,255,0.85)",
+  purple: "#6B4C8A",
+  magenta: "#C4577A",
+  cyan: "#1B5E3B",
+  gold: "#B8943E",
+  orange: "#C76F30",
+  pink: "#D4868E",
+  lime: "#5A8C3C",
+  blue: "#4A7C9B",
+  red: "#C44B4B",
+  textPrimary: "#2C2418",
+  textSecondary: "#6B5E4F",
+  textMuted: "#A09585",
+  border: "rgba(44,36,24,0.1)",
+  green: "#1B5E3B",
+  greenLight: "#2E8B57",
+  beige: "#EDE5D8",
+  cream: "#FAF7F2",
 };
 
 const Icons = {
@@ -137,7 +141,7 @@ function TripBg() {
       const w = cv.width, h = cv.height, t = f * 0.004;
 
       // Fade trail — faster clear for subtler background
-      ctx.fillStyle = "rgba(2,0,8,0.18)";
+      ctx.fillStyle = "rgba(245,239,230,0.22)";
       ctx.fillRect(0, 0, w, h);
 
       // === PLASMA FIELD — dimmed hue cycling blobs ===
@@ -244,7 +248,7 @@ function TripBg() {
         backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
       }} />
       {/* Vignette — stronger to keep edges dark */}
-      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at center, transparent 30%, rgba(2,0,8,0.75) 100%)" }} />
+      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at center, transparent 40%, rgba(237,229,216,0.5) 100%)" }} />
     </div>
   );
 }
@@ -255,23 +259,19 @@ function TripBg() {
 function Card({ children, style = {}, onClick, intense }) {
   const [h, setH] = useState(false);
   return (
-    <div className={intense ? "card-intense" : "card-glow"} onClick={onClick}
+    <div onClick={onClick}
       onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
       style={{
-        background: C.bgCard, borderRadius: 18, position: "relative",
-        backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
-        border: `1px solid ${h ? "rgba(196,74,255,0.35)" : C.border}`,
-        boxShadow: h ? "0 0 40px rgba(196,74,255,0.12), 0 0 80px rgba(0,255,204,0.06)" : "inset 0 1px 0 rgba(255,255,255,0.04)",
-        transition: "all 0.5s cubic-bezier(.25,.8,.25,1)",
+        background: intense ? "rgba(255,255,255,0.92)" : C.bgCard, borderRadius: 16, position: "relative",
+        backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
+        border: `1px solid ${h ? "rgba(27,94,59,0.25)" : C.border}`,
+        boxShadow: h ? "0 4px 20px rgba(44,36,24,0.08)" : "0 1px 4px rgba(44,36,24,0.04)",
+        transition: "all 0.3s ease",
         cursor: onClick ? "pointer" : "default",
         overflow: "hidden", ...style,
       }}
     >
-      {/* Animated rainbow border shimmer */}
-      <div className="rainbow-border" style={{ position: "absolute", inset: -1, borderRadius: 19, padding: 1, background: "transparent", pointerEvents: "none", opacity: h ? 0.7 : 0.2, transition: "opacity 0.5s" }}>
-        <div style={{ width: "100%", height: "100%", borderRadius: 18, background: C.bgCard }} />
-      </div>
-      <div style={{ position: "relative", zIndex: 1 }}>{children}</div>
+      {children}
     </div>
   );
 }
@@ -279,18 +279,17 @@ function Card({ children, style = {}, onClick, intense }) {
 // =============================================
 // PULSING NEON BUTTON
 // =============================================
-function Btn({ children, color = C.cyan, onClick, disabled, full, style = {} }) {
+function Btn({ children, color = C.green, onClick, disabled, full, style = {} }) {
   return (
-    <button onClick={onClick} disabled={disabled} className={!disabled ? "btn-pulse" : ""}
+    <button onClick={onClick} disabled={disabled}
       style={{
-        padding: "12px 24px", borderRadius: 14, border: "none",
-        background: disabled ? "rgba(30,15,60,0.4)" : `linear-gradient(135deg, ${color}, ${color}aa)`,
-        color: disabled ? C.textMuted : "#fff", fontSize: 13, fontWeight: 700,
+        padding: "12px 24px", borderRadius: 12, border: "none",
+        background: disabled ? "#D5CFC5" : `linear-gradient(135deg, ${color}, ${color}dd)`,
+        color: disabled ? "#A09585" : "#fff", fontSize: 13, fontWeight: 700,
         fontFamily: "'Space Mono', monospace", cursor: disabled ? "default" : "pointer",
         transition: "all 0.3s", width: full ? "100%" : "auto",
-        textShadow: !disabled ? `0 0 20px ${color}` : "none",
-        boxShadow: !disabled ? `0 0 20px ${color}40, 0 0 60px ${color}15` : "none",
-        letterSpacing: "0.05em", ...style,
+        boxShadow: !disabled ? `0 2px 12px ${color}30` : "none",
+        letterSpacing: "0.03em", ...style,
       }}
     >{children}</button>
   );
@@ -321,7 +320,7 @@ function Onboarding({ onComplete }) {
           <div className="rainbow-spin" style={{ position: "absolute", left: 20, top: 10, width: 100, height: 100, borderRadius: "50%", opacity: 0.4, filter: "blur(25px)" }} />
           <div className="rainbow-spin-reverse" style={{ position: "absolute", left: 30, top: 20, width: 80, height: 80, borderRadius: "50%", opacity: 0.25, filter: "blur(15px)" }} />
           <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", animation: "floatTrip 3s ease-in-out infinite", paddingTop: 8 }}>
-            <ElevateBrand size={100} color={C.cyan} glow style={{ filter: `drop-shadow(0 0 20px rgba(0,255,204,0.3))` }} />
+            <ElevateBrand size={100} color={C.cyan} glow style={{ filter: `drop-shadow(0 0 10px rgba(27,94,59,0.2))` }} />
           </div>
         </div>
 
@@ -468,7 +467,7 @@ function Session({ onClose, onSave }) {
         <div style={{ fontSize: 48, marginBottom: 12, animation: "floatTrip 2s ease-in-out infinite", filter: "drop-shadow(0 0 30px rgba(0,255,204,0.6))" }}>✨</div>
         <h2 style={{ fontFamily: "'Syne', sans-serif", color: C.textPrimary, fontSize: 22, fontWeight: 700 }}>Session Complete</h2>
       </div>
-      <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Log your visions..." className="input-glow" style={{ width: "100%", minHeight: 120, padding: 16, background: "rgba(8,2,24,0.5)", border: `1px solid ${C.border}`, borderRadius: 14, color: C.textPrimary, fontSize: 13, fontFamily: "'Space Mono', monospace", resize: "vertical", outline: "none", boxSizing: "border-box" }} />
+      <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Log your visions..." className="input-glow" style={{ width: "100%", minHeight: 120, padding: 16, background: "rgba(237,229,216,0.8)", border: `1px solid ${C.border}`, borderRadius: 14, color: C.textPrimary, fontSize: 13, fontFamily: "'Space Mono', monospace", resize: "vertical", outline: "none", boxSizing: "border-box" }} />
       <div style={{ marginTop: 16 }}><Btn onClick={() => { if (onSave) onSave(ss[type].l, ss[type].d / 60, notes); onClose(); }} full color={C.cyan}>Save & Close</Btn></div>
     </div>
   );
@@ -524,7 +523,7 @@ function AI() {
       </div>
       <div style={{ padding: "12px 16px", display: "flex", gap: 8 }}>
         <input value={inp} onChange={e => setInp(e.target.value)} onKeyDown={e => e.key === "Enter" && send()} placeholder="Share an idea..." className="input-glow" style={{ flex: 1, padding: "12px 16px", background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 24, color: C.textPrimary, fontSize: 12, fontFamily: "'Space Mono', monospace", outline: "none" }} />
-        <button onClick={send} className="btn-pulse" style={{ width: 44, height: 44, borderRadius: "50%", border: "none", background: `linear-gradient(135deg, ${C.cyan}, ${C.purple})`, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: `0 0 20px ${C.cyan}40` }}>
+        <button onClick={send} className="btn-pulse" style={{ width: 44, height: 44, borderRadius: "50%", border: "none", background: `linear-gradient(135deg, ${C.cyan}, ${C.purple})`, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: `0 2px 10px rgba(27,94,59,0.2)` }}>
           <span style={{ width: 18, height: 18 }}><Icons.Send /></span>
         </button>
       </div>
@@ -692,8 +691,8 @@ export default function App() {
   if (scr === "onboard") return (<div style={{ background: C.bg, minHeight: "100vh" }}><TripBg /><Onboarding onComplete={n => { setUser(n); setScr("app"); }} /><style>{CSS}</style></div>);
 
   const Modal = ({ children, onClose, title }) => (
-    <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(2,0,8,0.85)", backdropFilter: "blur(16px)", display: "flex", alignItems: "flex-end", justifyContent: "center", animation: "fadeIn 0.2s" }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, maxHeight: "85vh", background: "linear-gradient(180deg,rgba(15,5,35,0.97),rgba(5,2,15,0.99))", borderRadius: "22px 22px 0 0", border: `1px solid ${C.border}`, borderBottom: "none", overflow: "auto", animation: "slideUp 0.4s cubic-bezier(.25,.8,.25,1)", backdropFilter: "blur(20px)" }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(44,36,24,0.5)", backdropFilter: "blur(16px)", display: "flex", alignItems: "flex-end", justifyContent: "center", animation: "fadeIn 0.2s" }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, maxHeight: "85vh", background: "linear-gradient(180deg,rgba(250,247,242,0.97),rgba(245,239,230,0.99))", borderRadius: "22px 22px 0 0", border: `1px solid ${C.border}`, borderBottom: "none", overflow: "auto", animation: "slideUp 0.4s cubic-bezier(.25,.8,.25,1)", backdropFilter: "blur(20px)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
           <span style={{ color: C.textPrimary, fontWeight: 700, fontFamily: "'Syne', sans-serif", fontSize: 15 }}>{title}</span>
           <button onClick={onClose} style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", width: 24, height: 24 }}><Icons.X /></button>
@@ -732,7 +731,7 @@ export default function App() {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 28 }}>
         {[{ l: "Capture Idea", i: "💡", a: () => setTab("ideas"), c: C.gold },{ l: "Start Session", i: "🌀", a: () => setShowS(true), c: C.cyan },{ l: "AI Assistant", i: "🔮", a: () => setShowAI(true), c: C.purple },{ l: "Reflect", i: "🪞", a: () => setTab("reflect"), c: C.magenta }].map((q, idx) => (
           <Card key={idx} onClick={q.a} style={{ padding: "16px 14px", display: "flex", alignItems: "center", gap: 12 }}>
-            <span style={{ fontSize: 24, filter: `drop-shadow(0 0 12px ${q.c}70)`, animation: "floatTrip 3s ease-in-out infinite", animationDelay: `${idx*0.4}s` }}>{q.i}</span>
+            <span style={{ fontSize: 24, filter: "none", animation: "floatTrip 3s ease-in-out infinite", animationDelay: `${idx*0.4}s` }}>{q.i}</span>
             <span style={{ color: C.textPrimary, fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>{q.l}</span>
           </Card>
         ))}
@@ -769,7 +768,7 @@ export default function App() {
       <p style={{ color: C.textMuted, fontSize: 11, fontFamily: "'Space Mono', monospace", marginBottom: 24 }}>Plan your creative day</p>
       <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
         <input value={nt} onChange={e => setNt(e.target.value)} onKeyDown={e => e.key === "Enter" && addT()} placeholder="Add a task..." className="input-glow" style={{ flex: 1, padding: "12px 16px", background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 14, color: C.textPrimary, fontSize: 12, fontFamily: "'Space Mono', monospace", outline: "none" }} />
-        <button onClick={addT} className="btn-pulse" style={{ width: 44, height: 44, borderRadius: 14, border: "none", background: `linear-gradient(135deg,${C.cyan},${C.purple})`, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: `0 0 20px ${C.cyan}35` }}><span style={{ width: 20, height: 20 }}><Icons.Plus /></span></button>
+        <button onClick={addT} className="btn-pulse" style={{ width: 44, height: 44, borderRadius: 14, border: "none", background: `linear-gradient(135deg,${C.cyan},${C.purple})`, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: `0 2px 10px rgba(27,94,59,0.2)` }}><span style={{ width: 20, height: 20 }}><Icons.Plus /></span></button>
       </div>
       {tasks.map(t => (
         <Card key={t.id} onClick={() => togT(t.id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", marginBottom: 8 }}>
@@ -842,7 +841,7 @@ export default function App() {
                   const active = myReactions[p.id]?.[r.t];
                   const count = reactionCounts[p.id]?.[r.t] || 0;
                   return (
-                    <button key={r.t} onClick={() => reactToPost(p.id, r.t)} style={{ display: "flex", alignItems: "center", gap: 4, background: active ? `${C.purple}20` : "none", border: active ? `1px solid ${C.purple}40` : "1px solid transparent", color: active ? C.cyan : C.textMuted, cursor: "pointer", fontSize: 12, fontFamily: "'Space Mono', monospace", padding: "5px 10px", borderRadius: 16, transition: "all 0.3s" }}>
+                    <button key={r.t} onClick={() => reactToPost(p.id, r.t)} style={{ display: "flex", alignItems: "center", gap: 4, background: active ? `${C.green}15` : "none", border: active ? `1px solid ${C.green}40` : "1px solid transparent", color: active ? C.cyan : C.textMuted, cursor: "pointer", fontSize: 12, fontFamily: "'Space Mono', monospace", padding: "5px 10px", borderRadius: 16, transition: "all 0.3s" }}>
                       <span>{r.e}</span>
                       {count > 0 && <span style={{ fontSize: 10 }}>{count}</span>}
                     </button>
@@ -871,7 +870,7 @@ export default function App() {
         const gradients = [`linear-gradient(135deg,${C.purple},${C.magenta})`,`linear-gradient(135deg,${C.gold},${C.orange})`,`linear-gradient(135deg,${C.cyan},${C.purple})`,`linear-gradient(135deg,${C.magenta},${C.orange})`,`linear-gradient(135deg,${C.cyan},${C.lime})`,`linear-gradient(135deg,${C.gold},${C.magenta})`];
         return (
           <Card key={c.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 18px", marginBottom: 10 }}>
-            <div style={{ width: 48, height: 48, borderRadius: 14, background: gradients[i % 6], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0, boxShadow: `0 0 20px hsla(${hue},100%,60%,0.25)` }}>{c.emoji || "🎨"}</div>
+            <div style={{ width: 48, height: 48, borderRadius: 14, background: gradients[i % 6], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0, boxShadow: `0 2px 10px hsla(${hue},40%,40%,0.15)` }}>{c.emoji || "🎨"}</div>
             <div style={{ flex: 1 }}>
               <div style={{ color: C.textPrimary, fontSize: 13, fontWeight: 700, fontFamily: "'Syne', sans-serif" }}>{c.name}</div>
               <div style={{ color: C.textMuted, fontSize: 10, fontFamily: "'Space Mono', monospace" }}>{c.description || ""}</div>
@@ -990,7 +989,7 @@ export default function App() {
             <div className="rainbow-spin" style={{ position: "absolute", inset: 0, borderRadius: "50%", opacity: 0.6, filter: "blur(15px)" }} />
             <div className="rainbow-spin-reverse" style={{ position: "absolute", inset: 8, borderRadius: "50%", opacity: 0.4, filter: "blur(10px)" }} />
             <div style={{ position: "absolute", inset: 5, borderRadius: "50%", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <ElevateLogo size={40} color={C.cyan} glow style={{ filter: `drop-shadow(0 0 15px ${C.cyan}50)` }} />
+              <ElevateLogo size={40} color={C.cyan} glow style={{ filter: `drop-shadow(0 0 8px rgba(27,94,59,0.25))` }} />
             </div>
           </div>
           <h2 className="title-rainbow" style={{ fontFamily: "'Syne', sans-serif", fontSize: 22, fontWeight: 800, margin: "0 0 4px" }}>{user}</h2>

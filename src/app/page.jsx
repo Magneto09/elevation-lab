@@ -1063,7 +1063,7 @@ export default function App() {
     );
   };
 
-  const tabs = { home: renderHome, tasks: renderTasks, ideas: renderIdeas, feed: renderFeed, circles: renderCircles, shop: renderShop, reflect: renderReflect, profile: renderProfile };
+  const tabs = { home: renderHome, tasks: renderTasks, ideas: renderIdeas, feed: renderFeed, circles: renderCircles, reflect: renderReflect, profile: renderProfile };
 
   return (
     <div style={{ background: C.bg, minHeight: "100vh", maxWidth: 480, margin: "0 auto", position: "relative" }}>
@@ -1073,7 +1073,6 @@ export default function App() {
         <NTab icon={Icons.Home} label="Home" id="home" />
         <NTab icon={Icons.Check} label="Tasks" id="tasks" />
         <NTab icon={Icons.Bulb} label="Ideas" id="ideas" />
-        <NTab icon={Icons.Bag} label="Shop" id="shop" />
         <NTab icon={Icons.Users} label="Feed" id="feed" />
         <NTab icon={Icons.Star} label="Circles" id="circles" />
         <NTab icon={Icons.Book} label="Reflect" id="reflect" />

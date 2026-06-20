@@ -28,6 +28,42 @@ const C = {
   cream: "#0A1628",
 };
 
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
+body{background:#0A1628;color:#E8F0F5;font-family:'Space Mono',monospace}
+
+.title-rainbow{
+  background:linear-gradient(90deg,#7AE5C4,#C9F4D5,#7AE5C4);
+  background-size:200% auto;
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:transparent;
+  animation:gradientShift 8s ease infinite;
+}
+@keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+
+@keyframes warpIn{from{opacity:0;transform:scale(0.96) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes rotateSlow{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes pulseGlow{0%,100%{box-shadow:0 0 8px rgba(122,229,196,0.2)}50%{box-shadow:0 0 16px rgba(122,229,196,0.4)}}
+
+.rainbow-spin{background:conic-gradient(from 0deg,#7AE5C4,#C9F4D5,#7AE5C4,#80B4A0,#7AE5C4);animation:rotateSlow 6s linear infinite}
+.rainbow-spin-reverse{background:conic-gradient(from 0deg,#C9F4D5,#7AE5C4,#80B4A0,#7AE5C4,#C9F4D5);animation:rotateSlow 8s linear infinite reverse}
+
+.text-glow-pulse{animation:pulseGlow 2.5s ease-in-out infinite}
+
+.input-glow:focus{
+  border-color:rgba(122,229,196,0.4) !important;
+  box-shadow:0 0 12px rgba(122,229,196,0.15) !important;
+}
+
+input::placeholder,textarea::placeholder{color:#5E7080}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(122,229,196,0.2);border-radius:4px}
+`;
+
+
 const Icons = {
   Home: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
   Bulb: () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 00-4 12.7V17h8v-2.3A7 7 0 0012 2z"/></svg>,

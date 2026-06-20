@@ -7,25 +7,25 @@ import { supabase } from "@/lib/supabase";
 
 
 const C = {
-  bg: "#F5EFE6",
-  bgCard: "rgba(255,255,255,0.85)",
-  purple: "#6B4C8A",
-  magenta: "#C4577A",
-  cyan: "#1B5E3B",
-  gold: "#B8943E",
-  orange: "#C76F30",
-  pink: "#D4868E",
-  lime: "#5A8C3C",
-  blue: "#4A7C9B",
-  red: "#C44B4B",
-  textPrimary: "#2C2418",
-  textSecondary: "#6B5E4F",
-  textMuted: "#A09585",
-  border: "rgba(44,36,24,0.1)",
-  green: "#1B5E3B",
-  greenLight: "#2E8B57",
-  beige: "#EDE5D8",
-  cream: "#FAF7F2",
+  bg: "#0A1628",
+  bgCard: "rgba(20,30,48,0.65)",
+  purple: "#7AE5C4",
+  magenta: "#7AE5C4",
+  cyan: "#7AE5C4",
+  gold: "#C9F4D5",
+  orange: "#7AE5C4",
+  pink: "#C9F4D5",
+  lime: "#7AE5C4",
+  blue: "#7AE5C4",
+  red: "#FF7A7A",
+  textPrimary: "#E8F0F5",
+  textSecondary: "#A8B8C8",
+  textMuted: "#5E7080",
+  border: "rgba(122,229,196,0.12)",
+  green: "#7AE5C4",
+  greenLight: "#C9F4D5",
+  beige: "#1A2638",
+  cream: "#0A1628",
 };
 
 const Icons = {
@@ -141,7 +141,7 @@ function TripBg() {
       const w = cv.width, h = cv.height, t = f * 0.004;
 
       // Fade trail — faster clear for subtler background
-      ctx.fillStyle = "rgba(245,239,230,0.22)";
+      ctx.fillStyle = "rgba(10,22,40,0.2)";
       ctx.fillRect(0, 0, w, h);
 
       // === PLASMA FIELD — dimmed hue cycling blobs ===
@@ -248,7 +248,7 @@ function TripBg() {
         backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
       }} />
       {/* Vignette — stronger to keep edges dark */}
-      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at center, transparent 40%, rgba(237,229,216,0.5) 100%)" }} />
+      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at center, transparent 40%, rgba(10,22,40,0.6) 100%)" }} />
     </div>
   );
 }
@@ -262,10 +262,10 @@ function Card({ children, style = {}, onClick, intense }) {
     <div onClick={onClick}
       onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
       style={{
-        background: intense ? "rgba(255,255,255,0.92)" : C.bgCard, borderRadius: 16, position: "relative",
-        backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
-        border: `1px solid ${h ? "rgba(27,94,59,0.25)" : C.border}`,
-        boxShadow: h ? "0 4px 20px rgba(44,36,24,0.08)" : "0 1px 4px rgba(44,36,24,0.04)",
+        background: intense ? "rgba(26,38,56,0.85)" : C.bgCard, borderRadius: 16, position: "relative",
+        backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
+        border: `1px solid ${h ? "rgba(122,229,196,0.3)" : C.border}`,
+        boxShadow: h ? "0 4px 20px rgba(122,229,196,0.08)" : "0 1px 4px rgba(0,0,0,0.2)",
         transition: "all 0.3s ease",
         cursor: onClick ? "pointer" : "default",
         overflow: "hidden", ...style,
@@ -284,11 +284,11 @@ function Btn({ children, color = C.green, onClick, disabled, full, style = {} })
     <button onClick={onClick} disabled={disabled}
       style={{
         padding: "12px 24px", borderRadius: 12, border: "none",
-        background: disabled ? "#D5CFC5" : `linear-gradient(135deg, ${color}, ${color}dd)`,
-        color: disabled ? "#A09585" : "#fff", fontSize: 13, fontWeight: 700,
+        background: disabled ? "rgba(94,112,128,0.2)" : `linear-gradient(135deg, ${color}, ${color}cc)`,
+        color: disabled ? "#5E7080" : "#0A1628", fontSize: 13, fontWeight: 700,
         fontFamily: "'Space Mono', monospace", cursor: disabled ? "default" : "pointer",
         transition: "all 0.3s", width: full ? "100%" : "auto",
-        boxShadow: !disabled ? `0 2px 12px ${color}30` : "none",
+        boxShadow: !disabled ? `0 2px 16px ${color}40` : "none",
         letterSpacing: "0.03em", ...style,
       }}
     >{children}</button>
@@ -1026,3 +1026,30 @@ export default function App() {
       </div>
     );
   };
+
+  const tabs = { home: renderHome, tasks: renderTasks, ideas: renderIdeas, feed: renderFeed, circles: renderCircles, shop: renderShop, reflect: renderReflect, profile: renderProfile };
+
+  return (
+    <div style={{ background: C.bg, minHeight: "100vh", maxWidth: 480, margin: "0 auto", position: "relative" }}>
+      <TripBg />
+      <div style={{ position: "relative", zIndex: 1 }}>{tabs[tab]?.() || renderHome()}</div>
+      <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: `linear-gradient(180deg, transparent, #0A1628DD 15%, #0A1628FA)`, backdropFilter: "blur(24px)", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-around", padding: "10px 4px", paddingBottom: "max(10px, env(safe-area-inset-bottom))", zIndex: 50 }}>
+        <NTab icon={Icons.Home} label="Home" id="home" />
+        <NTab icon={Icons.Check} label="Tasks" id="tasks" />
+        <NTab icon={Icons.Bulb} label="Ideas" id="ideas" />
+        <NTab icon={Icons.Bag} label="Shop" id="shop" />
+        <NTab icon={Icons.Users} label="Feed" id="feed" />
+        <NTab icon={Icons.Star} label="Circles" id="circles" />
+        <NTab icon={Icons.Book} label="Reflect" id="reflect" />
+        <NTab icon={Icons.Settings} label="Profile" id="profile" />
+      </div>
+      {showS && <Modal title="✦ Creative Session" onClose={() => setShowS(false)}><Session onClose={() => setShowS(false)} onSave={async (type, mins, notes) => {
+        if (!authUser) return;
+        await supabase.from("sessions").insert({ user_id: authUser.id, session_type: type, duration_minutes: mins, notes });
+        setSessionCount(prev => prev + 1);
+      }} /></Modal>}
+      {showAI && <Modal title="✨ AI Assistant" onClose={() => setShowAI(false)}><div style={{ height: 420 }}><AI /></div></Modal>}
+      <style>{CSS}</style>
+    </div>
+  );
+}

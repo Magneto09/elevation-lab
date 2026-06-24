@@ -7,60 +7,59 @@ import { supabase } from "@/lib/supabase";
 
 
 const C = {
-  bg: "#0A1628",
-  bgCard: "rgba(20,30,48,0.65)",
-  purple: "#7AE5C4",
-  magenta: "#7AE5C4",
-  cyan: "#7AE5C4",
-  gold: "#C9F4D5",
-  orange: "#7AE5C4",
-  pink: "#C9F4D5",
-  lime: "#7AE5C4",
-  blue: "#7AE5C4",
-  red: "#FF7A7A",
-  textPrimary: "#E8F0F5",
-  textSecondary: "#A8B8C8",
-  textMuted: "#5E7080",
-  border: "rgba(122,229,196,0.12)",
-  green: "#7AE5C4",
-  greenLight: "#C9F4D5",
-  beige: "#1A2638",
-  cream: "#0A1628",
+  bg: "#FFFFFF",
+  bgCard: "#FFFFFF",
+  purple: "#0A0A0A",
+  magenta: "#0A0A0A",
+  cyan: "#0A0A0A",
+  gold: "#806600",
+  orange: "#D97706",
+  pink: "#0A0A0A",
+  lime: "#0A0A0A",
+  blue: "#2563EB",
+  red: "#DC2626",
+  textPrimary: "#0A0A0A",
+  textSecondary: "#4B5563",
+  textMuted: "#9CA3AF",
+  border: "#E5E7EB",
+  green: "#059669",
+  greenLight: "#10B981",
+  beige: "#F9FAFB",
+  cream: "#F3F4F6",
 };
 
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
-body{background:#0A1628;color:#E8F0F5;font-family:'Space Mono',monospace}
+body{background:#FFFFFF;color:#0A0A0A;font-family:'Inter',sans-serif}
 
 .title-rainbow{
-  background:linear-gradient(90deg,#7AE5C4,#C9F4D5,#7AE5C4);
-  background-size:200% auto;
-  -webkit-background-clip:text;background-clip:text;
-  -webkit-text-fill-color:transparent;color:transparent;
-  animation:gradientShift 8s ease infinite;
+  color:#0A0A0A;
+  background:none;
+  -webkit-background-clip:initial;background-clip:initial;
+  -webkit-text-fill-color:#0A0A0A;
 }
-@keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 
-@keyframes warpIn{from{opacity:0;transform:scale(0.96) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes warpIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes rotateSlow{from{transform:rotate(0)}to{transform:rotate(360deg)}}
-@keyframes pulseGlow{0%,100%{box-shadow:0 0 8px rgba(122,229,196,0.2)}50%{box-shadow:0 0 16px rgba(122,229,196,0.4)}}
+@keyframes pulseGlow{0%,100%{opacity:0.7}50%{opacity:1}}
 
-.rainbow-spin{background:conic-gradient(from 0deg,#7AE5C4,#C9F4D5,#7AE5C4,#80B4A0,#7AE5C4);animation:rotateSlow 6s linear infinite}
-.rainbow-spin-reverse{background:conic-gradient(from 0deg,#C9F4D5,#7AE5C4,#80B4A0,#7AE5C4,#C9F4D5);animation:rotateSlow 8s linear infinite reverse}
+.rainbow-spin{background:#0A0A0A;animation:rotateSlow 8s linear infinite}
+.rainbow-spin-reverse{background:#374151;animation:rotateSlow 10s linear infinite reverse}
 
 .text-glow-pulse{animation:pulseGlow 2.5s ease-in-out infinite}
 
 .input-glow:focus{
-  border-color:rgba(122,229,196,0.4) !important;
-  box-shadow:0 0 12px rgba(122,229,196,0.15) !important;
+  border-color:#0A0A0A !important;
+  box-shadow:0 0 0 3px rgba(10,10,10,0.08) !important;
 }
 
-input::placeholder,textarea::placeholder{color:#5E7080}
-::-webkit-scrollbar{width:3px}
+input::placeholder,textarea::placeholder{color:#9CA3AF}
+::-webkit-scrollbar{width:6px}
 ::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:rgba(122,229,196,0.2);border-radius:4px}
+::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:#9CA3AF}
 `;
 
 
@@ -177,8 +176,7 @@ function TripBg() {
       const w = cv.width, h = cv.height, t = f * 0.004;
 
       // Fade trail — faster clear for subtler background
-      ctx.fillStyle = "rgba(10,22,40,0.2)";
-      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillRect(0, 0, w, h);
 
       // === PLASMA FIELD — dimmed hue cycling blobs ===
       for (let i = 0; i < 5; i++) {
@@ -284,7 +282,7 @@ function TripBg() {
         backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
       }} />
       {/* Vignette — stronger to keep edges dark */}
-      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at center, transparent 40%, rgba(10,22,40,0.6) 100%)" }} />
+      <div style={{ position: "absolute", inset: 0, background: "transparent" }} />
     </div>
   );
 }
@@ -298,11 +296,10 @@ function Card({ children, style = {}, onClick, intense }) {
     <div onClick={onClick}
       onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
       style={{
-        background: intense ? "rgba(26,38,56,0.85)" : C.bgCard, borderRadius: 16, position: "relative",
-        backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
-        border: `1px solid ${h ? "rgba(122,229,196,0.3)" : C.border}`,
-        boxShadow: h ? "0 4px 20px rgba(122,229,196,0.08)" : "0 1px 4px rgba(0,0,0,0.2)",
-        transition: "all 0.3s ease",
+        background: intense ? "#F7F6F3" : "#FFFFFF", borderRadius: 8, position: "relative",
+        border: `1px solid ${h ? "#D3D1CB" : "#EBEBEA"}`,
+        boxShadow: h && onClick ? "0 2px 8px rgba(15,15,15,0.04)" : "none",
+        transition: "all 0.15s ease",
         cursor: onClick ? "pointer" : "default",
         overflow: "hidden", ...style,
       }}
@@ -315,17 +312,21 @@ function Card({ children, style = {}, onClick, intense }) {
 // =============================================
 // PULSING NEON BUTTON
 // =============================================
-function Btn({ children, color = C.green, onClick, disabled, full, style = {} }) {
+function Btn({ children, color = "#0F7B6C", onClick, disabled, full, style = {} }) {
+  const [h, setH] = useState(false);
   return (
     <button onClick={onClick} disabled={disabled}
+      onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
       style={{
-        padding: "12px 24px", borderRadius: 12, border: "none",
-        background: disabled ? "rgba(94,112,128,0.2)" : `linear-gradient(135deg, ${color}, ${color}cc)`,
-        color: disabled ? "#5E7080" : "#0A1628", fontSize: 13, fontWeight: 700,
-        fontFamily: "'Space Mono', monospace", cursor: disabled ? "default" : "pointer",
-        transition: "all 0.3s", width: full ? "100%" : "auto",
-        boxShadow: !disabled ? `0 2px 16px ${color}40` : "none",
-        letterSpacing: "0.03em", ...style,
+        padding: "8px 16px", borderRadius: 6, border: "none",
+        background: disabled ? "#EBEBEA" : (h ? "#0A6359" : "#0F7B6C"),
+        color: disabled ? "#9B9B9B" : "#FFFFFF",
+        fontSize: 14, fontWeight: 500,
+        fontFamily: "'Inter',sans-serif",
+        cursor: disabled ? "default" : "pointer",
+        transition: "background 0.15s ease",
+        width: full ? "100%" : "auto",
+        ...style,
       }}
     >{children}</button>
   );
@@ -1069,7 +1070,7 @@ export default function App() {
     <div style={{ background: C.bg, minHeight: "100vh", maxWidth: 480, margin: "0 auto", position: "relative" }}>
       <TripBg />
       <div style={{ position: "relative", zIndex: 1 }}>{tabs[tab]?.() || renderHome()}</div>
-      <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: `linear-gradient(180deg, transparent, #0A1628DD 15%, #0A1628FA)`, backdropFilter: "blur(24px)", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-around", padding: "10px 4px", paddingBottom: "max(10px, env(safe-area-inset-bottom))", zIndex: 50 }}>
+      <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "#FFFFFF", backdropFilter: "blur(24px)", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-around", padding: "10px 4px", paddingBottom: "max(10px, env(safe-area-inset-bottom))", zIndex: 50 }}>
         <NTab icon={Icons.Home} label="Home" id="home" />
         <NTab icon={Icons.Check} label="Tasks" id="tasks" />
         <NTab icon={Icons.Bulb} label="Ideas" id="ideas" />

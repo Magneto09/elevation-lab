@@ -574,6 +574,8 @@ function AI() {
 export default function App() {
   const [scr, setScr] = useState("loading");
   const [tab, setTab] = useState("home");
+  const [wsTab, setWsTab] = useState("ideas");
+  const [commTab, setCommTab] = useState("feed");
   const [user, setUser] = useState("");
   const [authUser, setAuthUser] = useState(null);
   const [ideas, setIdeas] = useState([]);
@@ -589,6 +591,8 @@ export default function App() {
   const [dp] = useState(PROMPTS[Math.floor(Math.random()*PROMPTS.length)]);
   const [shopCat, setShopCat] = useState("All");
   const [sessionCount, setSessionCount] = useState(0);
+  const [workspaceTab, setWorkspaceTab] = useState("ideas");
+  const [communityTab, setCommunityTab] = useState("feed");
   const [posts, setPosts] = useState([]);
   const [newPost, setNewPost] = useState("");
   const [circles, setCircles] = useState([]);
@@ -766,7 +770,7 @@ export default function App() {
       </Card>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 28 }}>
-        {[{ l: "Capture Idea", i: "💡", a: () => setTab("ideas"), c: C.gold },{ l: "Start Session", i: "🌀", a: () => setShowS(true), c: C.cyan },{ l: "AI Assistant", i: "🔮", a: () => setShowAI(true), c: C.purple },{ l: "Reflect", i: "🪞", a: () => setTab("reflect"), c: C.magenta }].map((q, idx) => (
+        {[{ l: "Capture Idea", i: "💡", a: () => setTab("workspace") || setWorkspaceTab("ideas"), c: C.gold },{ l: "Start Session", i: "🌀", a: () => setShowS(true), c: C.cyan },{ l: "AI Assistant", i: "🔮", a: () => setShowAI(true), c: C.purple },{ l: "Reflect", i: "🪞", a: () => setTab("workspace") || setWorkspaceTab("reflect"), c: C.magenta }].map((q, idx) => (
           <Card key={idx} onClick={q.a} style={{ padding: "16px 14px", display: "flex", alignItems: "center", gap: 12 }}>
             <span style={{ fontSize: 24, filter: "none", animation: "floatTrip 3s ease-in-out infinite", animationDelay: `${idx*0.4}s` }}>{q.i}</span>
             <span style={{ color: C.textPrimary, fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>{q.l}</span>
@@ -800,7 +804,7 @@ export default function App() {
   );
 
   const renderTasks = () => (
-    <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.5s" }}>
+    <div style={{ padding: "0 0 0", animation: "warpIn 0.5s" }}>
       <h2 className="title-rainbow" style={{ fontFamily: "'Syne', sans-serif", fontSize: 24, fontWeight: 800, marginBottom: 4 }}>Elevation Planner</h2>
       <p style={{ color: C.textMuted, fontSize: 11, fontFamily: "'Space Mono', monospace", marginBottom: 24 }}>Plan your creative day</p>
       <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
@@ -822,7 +826,7 @@ export default function App() {
   );
 
   const renderIdeas = () => (
-    <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.5s" }}>
+    <div style={{ padding: "0 0 0", animation: "warpIn 0.5s" }}>
       <h2 className="title-rainbow" style={{ fontFamily: "'Syne', sans-serif", fontSize: 24, fontWeight: 800, marginBottom: 4 }}>Idea Notebook</h2>
       <p style={{ color: C.textMuted, fontSize: 11, fontFamily: "'Space Mono', monospace", marginBottom: 24 }}>Capture every spark from the void</p>
       <Card intense style={{ padding: 16, marginBottom: 24 }}>
@@ -845,7 +849,7 @@ export default function App() {
   );
 
   const renderFeed = () => (
-    <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.5s" }}>
+    <div style={{ padding: "0 0 0", animation: "warpIn 0.5s" }}>
       <h2 className="title-rainbow" style={{ fontFamily: "'Syne', sans-serif", fontSize: 24, fontWeight: 800, marginBottom: 20 }}>Creative Feed</h2>
       {/* Create a post */}
       <Card intense style={{ padding: 16, marginBottom: 20 }}>
@@ -893,7 +897,7 @@ export default function App() {
   );
 
   const renderCircles = () => (
-    <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.5s" }}>
+    <div style={{ padding: "0 0 0", animation: "warpIn 0.5s" }}>
       <h2 className="title-rainbow" style={{ fontFamily: "'Syne', sans-serif", fontSize: 24, fontWeight: 800, marginBottom: 4 }}>Creative Circles</h2>
       <p style={{ color: C.textMuted, fontSize: 11, fontFamily: "'Space Mono', monospace", marginBottom: 24 }}>Find your creative tribe</p>
       {circles.length === 0 && (
@@ -920,7 +924,7 @@ export default function App() {
   );
 
   const renderReflect = () => (
-    <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.5s" }}>
+    <div style={{ padding: "0 0 0", animation: "warpIn 0.5s" }}>
       <h2 className="title-rainbow" style={{ fontFamily: "'Syne', sans-serif", fontSize: 24, fontWeight: 800, marginBottom: 4 }}>Reflection Journal</h2>
       <p style={{ color: C.textMuted, fontSize: 11, fontFamily: "'Space Mono', monospace", marginBottom: 24 }}>Look inward, create outward</p>
       <Card intense style={{ padding: 20, marginBottom: 20 }}>
@@ -936,6 +940,57 @@ export default function App() {
           <span style={{ color: C.textMuted, fontSize: 10, fontFamily: "'Space Mono', monospace" }}>{r.date}</span>
         </Card>
       ))}
+    </div>
+  );
+
+  // ============ WORKSPACE (Ideas + Tasks + Reflect) ============
+  const renderWorkspace = () => (
+    <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.5s" }}>
+      <h2 style={{ fontFamily: "'Inter', sans-serif", fontSize: 24, fontWeight: 700, marginBottom: 20, color: C.textPrimary }}>Workspace</h2>
+      {/* Sub-tabs */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 20, background: "#F3F4F6", padding: 4, borderRadius: 10 }}>
+        {[
+          { id: "ideas", label: "Ideas" },
+          { id: "tasks", label: "Tasks" },
+          { id: "reflect", label: "Reflect" },
+        ].map(t => (
+          <button key={t.id} onClick={() => setWsTab(t.id)} style={{
+            flex: 1, padding: "8px 12px", borderRadius: 7, border: "none",
+            background: wsTab === t.id ? "#FFFFFF" : "transparent",
+            color: wsTab === t.id ? C.textPrimary : C.textSecondary,
+            fontSize: 13, fontWeight: 500, fontFamily: "'Inter', sans-serif",
+            cursor: "pointer", transition: "all 0.15s",
+            boxShadow: wsTab === t.id ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
+          }}>{t.label}</button>
+        ))}
+      </div>
+      {wsTab === "ideas" && renderIdeas()}
+      {wsTab === "tasks" && renderTasks()}
+      {wsTab === "reflect" && renderReflect()}
+    </div>
+  );
+
+  // ============ COMMUNITY (Feed + Circles) ============
+  const renderCommunity = () => (
+    <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.5s" }}>
+      <h2 style={{ fontFamily: "'Inter', sans-serif", fontSize: 24, fontWeight: 700, marginBottom: 20, color: C.textPrimary }}>Community</h2>
+      <div style={{ display: "flex", gap: 4, marginBottom: 20, background: "#F3F4F6", padding: 4, borderRadius: 10 }}>
+        {[
+          { id: "feed", label: "Feed" },
+          { id: "circles", label: "Circles" },
+        ].map(t => (
+          <button key={t.id} onClick={() => setCommTab(t.id)} style={{
+            flex: 1, padding: "8px 12px", borderRadius: 7, border: "none",
+            background: commTab === t.id ? "#FFFFFF" : "transparent",
+            color: commTab === t.id ? C.textPrimary : C.textSecondary,
+            fontSize: 13, fontWeight: 500, fontFamily: "'Inter', sans-serif",
+            cursor: "pointer", transition: "all 0.15s",
+            boxShadow: commTab === t.id ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
+          }}>{t.label}</button>
+        ))}
+      </div>
+      {commTab === "feed" && renderFeed()}
+      {commTab === "circles" && renderCircles()}
     </div>
   );
 
@@ -1064,7 +1119,18 @@ export default function App() {
     );
   };
 
-  const tabs = { home: renderHome, tasks: renderTasks, ideas: renderIdeas, feed: renderFeed, circles: renderCircles, reflect: renderReflect, profile: renderProfile };
+
+  const SubTabBtn = ({ active, onClick, children }) => (
+    <button onClick={onClick} style={{
+      padding: "8px 18px", borderRadius: 8, border: "none",
+      background: active ? "#0A0A0A" : "transparent",
+      color: active ? "#FFFFFF" : "#6B7280",
+      fontSize: 13, fontWeight: 500, fontFamily: "'Inter', sans-serif",
+      cursor: "pointer", transition: "all 0.15s ease", flex: 1
+    }}>{children}</button>
+  );
+
+  const tabs = { home: renderHome, workspace: renderWorkspace, community: renderCommunity, profile: renderProfile };
 
   return (
     <div style={{ background: C.bg, minHeight: "100vh", maxWidth: 480, margin: "0 auto", position: "relative" }}>
@@ -1072,11 +1138,8 @@ export default function App() {
       <div style={{ position: "relative", zIndex: 1 }}>{tabs[tab]?.() || renderHome()}</div>
       <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "#FFFFFF", backdropFilter: "blur(24px)", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-around", padding: "10px 4px", paddingBottom: "max(10px, env(safe-area-inset-bottom))", zIndex: 50 }}>
         <NTab icon={Icons.Home} label="Home" id="home" />
-        <NTab icon={Icons.Check} label="Tasks" id="tasks" />
-        <NTab icon={Icons.Bulb} label="Ideas" id="ideas" />
-        <NTab icon={Icons.Users} label="Feed" id="feed" />
-        <NTab icon={Icons.Star} label="Circles" id="circles" />
-        <NTab icon={Icons.Book} label="Reflect" id="reflect" />
+        <NTab icon={Icons.Bulb} label="Workspace" id="workspace" />
+        <NTab icon={Icons.Users} label="Community" id="community" />
         <NTab icon={Icons.Settings} label="Profile" id="profile" />
       </div>
       {showS && <Modal title="✦ Creative Session" onClose={() => setShowS(false)}><Session onClose={() => setShowS(false)} onSave={async (type, mins, notes) => {

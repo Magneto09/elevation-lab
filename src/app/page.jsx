@@ -576,6 +576,18 @@ export default function App() {
   const [tab, setTab] = useState("home");
   const [wsTab, setWsTab] = useState("ideas");
   const [commTab, setCommTab] = useState("feed");
+  const [habits, setHabits] = useState([]);
+  const [habitCheckins, setHabitCheckins] = useState({});
+  const [goals, setGoals] = useState([]);
+  const [visionItems, setVisionItems] = useState([]);
+  const [newHabit, setNewHabit] = useState("");
+  const [newGoal, setNewGoal] = useState({ title: "", target: 100 });
+  const [newVisionNote, setNewVisionNote] = useState("");
+  const [showHabitForm, setShowHabitForm] = useState(false);
+  const [showGoalForm, setShowGoalForm] = useState(false);
+  const [showVisionForm, setShowVisionForm] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
   const [user, setUser] = useState("");
   const [authUser, setAuthUser] = useState(null);
   const [ideas, setIdeas] = useState([]);
@@ -644,6 +656,17 @@ export default function App() {
     // Load user's joined circles
     supabase.from("circle_members").select("circle_id").eq("user_id", uid)
       .then(({ data }) => { if (data) setMyCircles(data.map(d => d.circle_id)); });
+    supabase.from("habits").select("*").eq("user_id", uid).order("created_at", { ascending: true })
+      .then(({ data }) => { if (data) setHabits(data); });
+    const today = new Date().toISOString().split("T")[0];
+    supabase.from("habit_checkins").select("habit_id").eq("user_id", uid).eq("checkin_date", today)
+      .then(({ data }) => {
+        if (data) { const map = {}; data.forEach(c => { map[c.habit_id] = true; }); setHabitCheckins(map); }
+      });
+    supabase.from("goals").select("*").eq("user_id", uid).order("created_at", { ascending: false })
+      .then(({ data }) => { if (data) setGoals(data); });
+    supabase.from("vision_items").select("*").eq("user_id", uid).order("position", { ascending: true })
+      .then(({ data }) => { if (data) setVisionItems(data); });
     // Load reaction counts for all posts
     supabase.from("reactions").select("post_id, reaction_type")
       .then(({ data }) => {
@@ -695,10 +718,18 @@ export default function App() {
 
   // Post to community feed
   const addPost = async () => {
-    if (!newPost.trim() || !authUser) return;
-    const { data } = await supabase.from("posts").insert({ user_id: authUser.id, caption: newPost, post_type: "thought" }).select("*, profiles(name)").single();
+    if (!authUser) return;
+    if (!newPost.trim() && !selectedImage) return;
+    let imageUrl = null;
+    if (selectedImage) {
+      imageUrl = await uploadPostImage(selectedImage);
+      if (!imageUrl) return;
+    }
+    const { data } = await supabase.from("posts").insert({
+      user_id: authUser.id, caption: newPost, post_type: imageUrl ? "image" : "thought", media_url: imageUrl
+    }).select("*, profiles(name)").single();
     if (data) setPosts([data, ...posts]);
-    setNewPost("");
+    setNewPost(""); setSelectedImage(null);
   };
   // Join/leave circle
   const toggleCircle = async (circleId) => {
@@ -724,6 +755,84 @@ export default function App() {
       setMyReactions(prev => { const n = {...prev}; if (!n[postId]) n[postId] = {}; n[postId][reactionType] = true; return n; });
       setReactionCounts(prev => { const n = {...prev}; if (!n[postId]) n[postId] = { appreciation: 0, inspiration: 0, curiosity: 0 }; n[postId][reactionType]++; return n; });
     }
+  };
+
+  // === Habits ===
+  const addHabit = async (name) => {
+    if (!name.trim() || !authUser) return;
+    const { data } = await supabase.from("habits").insert({ user_id: authUser.id, name, emoji: "✨" }).select().single();
+    if (data) setHabits([...habits, data]);
+    setNewHabit(""); setShowHabitForm(false);
+  };
+  const toggleHabitCheckin = async (habitId) => {
+    if (!authUser) return;
+    const today = new Date().toISOString().split("T")[0];
+    if (habitCheckins[habitId]) {
+      await supabase.from("habit_checkins").delete().eq("habit_id", habitId).eq("checkin_date", today);
+      setHabitCheckins(prev => { const n = {...prev}; delete n[habitId]; return n; });
+    } else {
+      await supabase.from("habit_checkins").insert({ habit_id: habitId, user_id: authUser.id, checkin_date: today });
+      setHabitCheckins(prev => ({ ...prev, [habitId]: true }));
+    }
+  };
+  const deleteHabit = async (id) => {
+    await supabase.from("habits").delete().eq("id", id);
+    setHabits(habits.filter(h => h.id !== id));
+  };
+
+  // === Goals ===
+  const addGoal = async () => {
+    if (!newGoal.title.trim() || !authUser) return;
+    const { data } = await supabase.from("goals").insert({ user_id: authUser.id, title: newGoal.title, target_value: newGoal.target }).select().single();
+    if (data) setGoals([data, ...goals]);
+    setNewGoal({ title: "", target: 100 }); setShowGoalForm(false);
+  };
+  const updateGoalProgress = async (id, delta) => {
+    const goal = goals.find(g => g.id === id);
+    if (!goal) return;
+    const newVal = Math.max(0, Math.min(goal.target_value, goal.current_value + delta));
+    const status = newVal >= goal.target_value ? "completed" : "active";
+    const { data } = await supabase.from("goals").update({ current_value: newVal, status }).eq("id", id).select().single();
+    if (data) setGoals(goals.map(g => g.id === id ? data : g));
+  };
+  const deleteGoal = async (id) => {
+    await supabase.from("goals").delete().eq("id", id);
+    setGoals(goals.filter(g => g.id !== id));
+  };
+
+  // === Vision board ===
+  const addVisionNote = async () => {
+    if (!newVisionNote.trim() || !authUser) return;
+    const { data } = await supabase.from("vision_items").insert({ user_id: authUser.id, item_type: "note", content: newVisionNote, position: visionItems.length }).select().single();
+    if (data) setVisionItems([...visionItems, data]);
+    setNewVisionNote(""); setShowVisionForm(false);
+  };
+  const addVisionImage = async (file) => {
+    if (!file || !authUser) return;
+    setUploadingImage(true);
+    const fileName = `${authUser.id}/vision-${Date.now()}-${file.name}`;
+    const { error: upErr } = await supabase.storage.from("post-images").upload(fileName, file);
+    if (upErr) { setUploadingImage(false); alert("Upload failed: " + upErr.message); return; }
+    const { data: { publicUrl } } = supabase.storage.from("post-images").getPublicUrl(fileName);
+    const { data } = await supabase.from("vision_items").insert({ user_id: authUser.id, item_type: "image", image_url: publicUrl, position: visionItems.length }).select().single();
+    if (data) setVisionItems([...visionItems, data]);
+    setUploadingImage(false);
+  };
+  const deleteVisionItem = async (id) => {
+    await supabase.from("vision_items").delete().eq("id", id);
+    setVisionItems(visionItems.filter(v => v.id !== id));
+  };
+
+  // === Post image upload ===
+  const uploadPostImage = async (file) => {
+    if (!file || !authUser) return null;
+    setUploadingImage(true);
+    const fileName = `${authUser.id}/post-${Date.now()}-${file.name}`;
+    const { error: upErr } = await supabase.storage.from("post-images").upload(fileName, file);
+    if (upErr) { setUploadingImage(false); alert("Upload failed: " + upErr.message); return null; }
+    const { data: { publicUrl } } = supabase.storage.from("post-images").getPublicUrl(fileName);
+    setUploadingImage(false);
+    return publicUrl;
   };
 
   // Loading screen
@@ -853,9 +962,19 @@ export default function App() {
       <h2 className="title-rainbow" style={{ fontFamily: "'Syne', sans-serif", fontSize: 24, fontWeight: 800, marginBottom: 20 }}>Creative Feed</h2>
       {/* Create a post */}
       <Card intense style={{ padding: 16, marginBottom: 20 }}>
-        <textarea value={newPost} onChange={e => setNewPost(e.target.value)} placeholder="Share something creative with the community..." rows={3} className="input-glow" style={{ width: "100%", padding: 0, background: "transparent", border: "none", color: C.textPrimary, fontSize: 12, fontFamily: "'Space Mono', monospace", resize: "none", outline: "none", boxSizing: "border-box", lineHeight: 1.7 }} />
-        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
-          <Btn onClick={addPost} disabled={!newPost.trim()} color={C.magenta} style={{ padding: "8px 20px", fontSize: 11 }}>✦ Post</Btn>
+        <textarea value={newPost} onChange={e => setNewPost(e.target.value)} placeholder="Share something with the community..." rows={3} style={{ width: "100%", padding: 0, background: "transparent", border: "none", color: C.textPrimary, fontSize: 13, fontFamily: "'Inter', sans-serif", resize: "none", outline: "none", boxSizing: "border-box", lineHeight: 1.6 }} />
+        {selectedImage && (
+          <div style={{ position: "relative", marginTop: 10 }}>
+            <img src={URL.createObjectURL(selectedImage)} alt="" style={{ width: "100%", maxHeight: 240, objectFit: "cover", borderRadius: 8, display: "block" }} />
+            <button onClick={() => setSelectedImage(null)} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.6)", color: "#fff", border: "none", borderRadius: "50%", width: 24, height: 24, fontSize: 12, cursor: "pointer" }}>×</button>
+          </div>
+        )}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
+          <label style={{ background: "#F3F4F6", color: C.textPrimary, padding: "6px 12px", borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
+            📷 Add Image
+            <input type="file" accept="image/*" onChange={e => e.target.files[0] && setSelectedImage(e.target.files[0])} style={{ display: "none" }} />
+          </label>
+          <Btn onClick={addPost} disabled={(!newPost.trim() && !selectedImage) || uploadingImage} style={{ padding: "8px 20px", fontSize: 13 }}>{uploadingImage ? "Uploading..." : "Post"}</Btn>
         </div>
       </Card>
       {/* Posts from all users */}
@@ -876,7 +995,8 @@ export default function App() {
                 <span style={{ color: C.textPrimary, fontSize: 12, fontWeight: 700, fontFamily: "'Syne', sans-serif" }}>{authorName}</span>
                 <span style={{ color: C.textMuted, fontSize: 9, fontFamily: "'Space Mono', monospace", marginLeft: "auto" }}>{timeAgo}</span>
               </div>
-              <p style={{ color: C.textSecondary, fontSize: 12, fontFamily: "'Space Mono', monospace", lineHeight: 1.7, margin: "0 0 14px" }}>{p.caption}</p>
+              {p.caption && <p style={{ color: C.textSecondary, fontSize: 13, fontFamily: "'Inter', sans-serif", lineHeight: 1.6, margin: "0 0 12px" }}>{p.caption}</p>}
+              {p.media_url && <img src={p.media_url} alt="" style={{ width: "100%", maxHeight: 360, objectFit: "cover", borderRadius: 8, display: "block", marginBottom: 12 }} />}
               <div style={{ display: "flex", gap: 8 }}>
                 {[{e:"🙏",t:"appreciation"},{e:"✨",t:"inspiration"},{e:"🤔",t:"curiosity"}].map(r => {
                   const active = myReactions[p.id]?.[r.t];
@@ -948,14 +1068,17 @@ export default function App() {
     <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.5s" }}>
       <h2 style={{ fontFamily: "'Inter', sans-serif", fontSize: 24, fontWeight: 700, marginBottom: 20, color: C.textPrimary }}>Workspace</h2>
       {/* Sub-tabs */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 20, background: "#F3F4F6", padding: 4, borderRadius: 10 }}>
+      <div style={{ display: "flex", gap: 4, marginBottom: 20, background: "#F3F4F6", padding: 4, borderRadius: 10, overflowX: "auto" }}>
         {[
           { id: "ideas", label: "Ideas" },
           { id: "tasks", label: "Tasks" },
+          { id: "habits", label: "Habits" },
+          { id: "goals", label: "Goals" },
+          { id: "vision", label: "Vision" },
           { id: "reflect", label: "Reflect" },
         ].map(t => (
           <button key={t.id} onClick={() => setWsTab(t.id)} style={{
-            flex: 1, padding: "8px 12px", borderRadius: 7, border: "none",
+            flex: "0 0 auto", padding: "8px 14px", borderRadius: 7, border: "none", whiteSpace: "nowrap",
             background: wsTab === t.id ? "#FFFFFF" : "transparent",
             color: wsTab === t.id ? C.textPrimary : C.textSecondary,
             fontSize: 13, fontWeight: 500, fontFamily: "'Inter', sans-serif",
@@ -966,6 +1089,9 @@ export default function App() {
       </div>
       {wsTab === "ideas" && renderIdeas()}
       {wsTab === "tasks" && renderTasks()}
+      {wsTab === "habits" && renderHabits()}
+      {wsTab === "goals" && renderGoals()}
+      {wsTab === "vision" && renderVision()}
       {wsTab === "reflect" && renderReflect()}
     </div>
   );
@@ -991,6 +1117,121 @@ export default function App() {
       </div>
       {commTab === "feed" && renderFeed()}
       {commTab === "circles" && renderCircles()}
+    </div>
+  );
+
+
+  const renderHabits = () => (
+    <div style={{ animation: "warpIn 0.4s" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <h3 style={{ fontFamily: "'Inter', sans-serif", fontSize: 16, fontWeight: 600, color: C.textPrimary, margin: 0 }}>Daily Habits</h3>
+        <button onClick={() => setShowHabitForm(!showHabitForm)} style={{ background: "#0A0A0A", color: "#fff", border: "none", padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>{showHabitForm ? "Cancel" : "+ Add"}</button>
+      </div>
+      {showHabitForm && (
+        <Card style={{ padding: 14, marginBottom: 12 }}>
+          <input value={newHabit} onChange={e => setNewHabit(e.target.value)} placeholder="e.g. Meditate 10 mins" onKeyDown={e => e.key === "Enter" && addHabit(newHabit)} style={{ width: "100%", padding: "10px 12px", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 8, color: C.textPrimary, fontSize: 13, fontFamily: "'Inter', sans-serif", outline: "none", boxSizing: "border-box" }} />
+          <Btn onClick={() => addHabit(newHabit)} disabled={!newHabit.trim()} full style={{ marginTop: 8 }}>Create Habit</Btn>
+        </Card>
+      )}
+      {habits.length === 0 && !showHabitForm && (
+        <p style={{ color: C.textMuted, fontSize: 13, fontFamily: "'Inter', sans-serif", textAlign: "center", padding: "20px 0" }}>No habits yet. Add one to start tracking!</p>
+      )}
+      {habits.map(h => {
+        const checked = habitCheckins[h.id];
+        return (
+          <Card key={h.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: 14, marginBottom: 8 }}>
+            <button onClick={() => toggleHabitCheckin(h.id)} style={{ width: 28, height: 28, borderRadius: "50%", border: checked ? "2px solid #0A0A0A" : "2px solid #E5E7EB", background: checked ? "#0A0A0A" : "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", flexShrink: 0 }}>
+              {checked && <span style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>✓</span>}
+            </button>
+            <span style={{ fontSize: 18 }}>{h.emoji}</span>
+            <span style={{ flex: 1, color: C.textPrimary, fontSize: 14, fontFamily: "'Inter', sans-serif", textDecoration: checked ? "line-through" : "none", opacity: checked ? 0.6 : 1 }}>{h.name}</span>
+            <button onClick={() => deleteHabit(h.id)} style={{ background: "none", border: "none", color: C.textMuted, fontSize: 16, cursor: "pointer" }}>×</button>
+          </Card>
+        );
+      })}
+    </div>
+  );
+
+  const renderGoals = () => (
+    <div style={{ animation: "warpIn 0.4s" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <h3 style={{ fontFamily: "'Inter', sans-serif", fontSize: 16, fontWeight: 600, color: C.textPrimary, margin: 0 }}>Creative Goals</h3>
+        <button onClick={() => setShowGoalForm(!showGoalForm)} style={{ background: "#0A0A0A", color: "#fff", border: "none", padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>{showGoalForm ? "Cancel" : "+ Add"}</button>
+      </div>
+      {showGoalForm && (
+        <Card style={{ padding: 14, marginBottom: 12 }}>
+          <input value={newGoal.title} onChange={e => setNewGoal({ ...newGoal, title: e.target.value })} placeholder="Goal title" style={{ width: "100%", padding: "10px 12px", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 8, color: C.textPrimary, fontSize: 13, fontFamily: "'Inter', sans-serif", outline: "none", boxSizing: "border-box", marginBottom: 8 }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <span style={{ fontSize: 12, color: C.textSecondary }}>Target:</span>
+            <input type="number" value={newGoal.target} onChange={e => setNewGoal({ ...newGoal, target: parseInt(e.target.value) || 100 })} style={{ width: 80, padding: "6px 10px", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 8, color: C.textPrimary, fontSize: 13, outline: "none" }} />
+            <span style={{ fontSize: 12, color: C.textMuted }}>units</span>
+          </div>
+          <Btn onClick={addGoal} disabled={!newGoal.title.trim()} full>Create Goal</Btn>
+        </Card>
+      )}
+      {goals.length === 0 && !showGoalForm && (
+        <p style={{ color: C.textMuted, fontSize: 13, fontFamily: "'Inter', sans-serif", textAlign: "center", padding: "20px 0" }}>No goals yet. Set your first creative goal!</p>
+      )}
+      {goals.map(g => {
+        const pct = Math.round((g.current_value / g.target_value) * 100);
+        const done = g.status === "completed";
+        return (
+          <Card key={g.id} style={{ padding: 14, marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ color: C.textPrimary, fontSize: 14, fontWeight: 600, fontFamily: "'Inter', sans-serif", textDecoration: done ? "line-through" : "none" }}>{g.title}</div>
+                <div style={{ color: C.textMuted, fontSize: 11, fontFamily: "'Inter', sans-serif", marginTop: 2 }}>{g.current_value} / {g.target_value} ({pct}%) {done && "🎉"}</div>
+              </div>
+              <button onClick={() => deleteGoal(g.id)} style={{ background: "none", border: "none", color: C.textMuted, fontSize: 16, cursor: "pointer" }}>×</button>
+            </div>
+            <div style={{ height: 6, background: "#F3F4F6", borderRadius: 3, overflow: "hidden", marginBottom: 10 }}>
+              <div style={{ height: "100%", width: pct + "%", background: done ? "#059669" : "#0A0A0A", transition: "width 0.3s ease" }} />
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button onClick={() => updateGoalProgress(g.id, -1)} style={{ flex: 1, padding: "6px", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 6, color: C.textPrimary, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>−1</button>
+              <button onClick={() => updateGoalProgress(g.id, 1)} style={{ flex: 1, padding: "6px", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 6, color: C.textPrimary, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>+1</button>
+              <button onClick={() => updateGoalProgress(g.id, 5)} style={{ flex: 1, padding: "6px", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 6, color: C.textPrimary, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>+5</button>
+              <button onClick={() => updateGoalProgress(g.id, 10)} style={{ flex: 1, padding: "6px", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 6, color: C.textPrimary, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>+10</button>
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+  );
+
+  const renderVision = () => (
+    <div style={{ animation: "warpIn 0.4s" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <h3 style={{ fontFamily: "'Inter', sans-serif", fontSize: 16, fontWeight: 600, color: C.textPrimary, margin: 0 }}>Vision Board</h3>
+        <div style={{ display: "flex", gap: 6 }}>
+          <label style={{ background: "#0A0A0A", color: "#fff", padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
+            {uploadingImage ? "..." : "+ Image"}
+            <input type="file" accept="image/*" onChange={e => e.target.files[0] && addVisionImage(e.target.files[0])} style={{ display: "none" }} />
+          </label>
+          <button onClick={() => setShowVisionForm(!showVisionForm)} style={{ background: "#fff", color: "#0A0A0A", border: "1px solid #E5E7EB", padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>+ Note</button>
+        </div>
+      </div>
+      {showVisionForm && (
+        <Card style={{ padding: 14, marginBottom: 12 }}>
+          <textarea value={newVisionNote} onChange={e => setNewVisionNote(e.target.value)} placeholder="Add inspiration or note..." rows={3} style={{ width: "100%", padding: "10px 12px", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 8, color: C.textPrimary, fontSize: 13, fontFamily: "'Inter', sans-serif", outline: "none", boxSizing: "border-box", resize: "none" }} />
+          <Btn onClick={addVisionNote} disabled={!newVisionNote.trim()} full style={{ marginTop: 8 }}>Add to Board</Btn>
+        </Card>
+      )}
+      {visionItems.length === 0 && !showVisionForm && (
+        <p style={{ color: C.textMuted, fontSize: 13, fontFamily: "'Inter', sans-serif", textAlign: "center", padding: "20px 0" }}>Your vision board is empty. Add images and notes!</p>
+      )}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        {visionItems.map(v => (
+          <Card key={v.id} style={{ padding: 0, overflow: "hidden", position: "relative" }}>
+            <button onClick={() => deleteVisionItem(v.id)} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.6)", color: "#fff", border: "none", borderRadius: "50%", width: 22, height: 22, fontSize: 12, cursor: "pointer", zIndex: 2 }}>×</button>
+            {v.item_type === "image" ? (
+              <img src={v.image_url} alt="" style={{ width: "100%", height: 140, objectFit: "cover", display: "block" }} />
+            ) : (
+              <div style={{ padding: 12, minHeight: 100, fontSize: 12, color: C.textPrimary, fontFamily: "'Inter', sans-serif", lineHeight: 1.5 }}>{v.content}</div>
+            )}
+          </Card>
+        ))}
+      </div>
     </div>
   );
 

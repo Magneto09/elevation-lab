@@ -131,3 +131,4 @@ git push
 - **Auth**: Supabase Auth (email/password)
 - **Hosting**: Vercel (auto-SSL, CDN, auto-deploy from GitHub)
 - **Total Monthly Cost**: ₹0
+ 

@@ -613,6 +613,17 @@ export default function App() {
   const [viewingUserPortfolio, setViewingUserPortfolio] = useState([]);
   const [showAddToCollection, setShowAddToCollection] = useState(null); // post_id
   const [exportingBoard, setExportingBoard] = useState(false);
+  const [reminders, setReminders] = useState([]);
+  const [showReminderForm, setShowReminderForm] = useState(false);
+  const [newReminder, setNewReminder] = useState({ title: "", time: "09:00" });
+  const [notificationPermission, setNotificationPermission] = useState("default");
+  const [aiSuggestions, setAiSuggestions] = useState([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [showAISuggest, setShowAISuggest] = useState(false);
+  const [activityByDate, setActivityByDate] = useState({});
+  const [analyticsView, setAnalyticsView] = useState("heatmap");
+  const [sessionsAll, setSessionsAll] = useState([]);
+  const [habitCheckinsAll, setHabitCheckinsAll] = useState([]);
   const [user, setUser] = useState("");
   const [authUser, setAuthUser] = useState(null);
   const [ideas, setIdeas] = useState([]);
@@ -750,6 +761,22 @@ export default function App() {
     // Load my portfolio
     supabase.from("portfolio_items").select("*").eq("user_id", uid).order("position", { ascending: true })
       .then(({ data }) => { if (data) setPortfolioItems(data); });
+    // Load reminders
+    supabase.from("reminders").select("*").eq("user_id", uid).eq("is_active", true)
+      .then(({ data }) => { if (data) setReminders(data); });
+    // Load AI suggestions history
+    supabase.from("ai_suggestions").select("*").eq("user_id", uid).order("created_at", { ascending: false }).limit(20)
+      .then(({ data }) => { if (data) setAiSuggestions(data); });
+    // Load all sessions for analytics
+    supabase.from("sessions").select("*").eq("user_id", uid).order("created_at", { ascending: false })
+      .then(({ data }) => { if (data) setSessionsAll(data); });
+    // Load all habit check-ins for analytics
+    supabase.from("habit_checkins").select("*").eq("user_id", uid).order("checkin_date", { ascending: false })
+      .then(({ data }) => { if (data) setHabitCheckinsAll(data); });
+    // Check notification permission
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setNotificationPermission(Notification.permission);
+    }
     // Load reaction counts for all posts
     supabase.from("reactions").select("post_id, reaction_type")
       .then(({ data }) => {
@@ -1297,6 +1324,120 @@ export default function App() {
     setExportingBoard(false);
   };
 
+  // === REMINDERS + NOTIFICATIONS ===
+  const requestNotificationPermission = async () => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      alert("Notifications not supported in this browser");
+      return;
+    }
+    const perm = await Notification.requestPermission();
+    setNotificationPermission(perm);
+  };
+
+  const addReminder = async () => {
+    if (!newReminder.title.trim() || !authUser) return;
+    const { data } = await supabase.from("reminders").insert({ user_id: authUser.id, title: newReminder.title, time: newReminder.time }).select().single();
+    if (data) setReminders(prev => [...prev, data]);
+    setNewReminder({ title: "", time: "09:00" });
+    setShowReminderForm(false);
+  };
+
+  const deleteReminder = async (id) => {
+    await supabase.from("reminders").delete().eq("id", id);
+    setReminders(prev => prev.filter(r => r.id !== id));
+  };
+
+  // Check reminders every minute
+  useEffect(() => {
+    if (!authUser || notificationPermission !== "granted") return;
+    const checkReminders = () => {
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, "0");
+      const mm = String(now.getMinutes()).padStart(2, "0");
+      const nowTime = hh + ":" + mm;
+      reminders.forEach(r => {
+        if (r.time === nowTime) {
+          try {
+            new Notification("Elevation Club", { body: r.title, icon: "/manifest.json" });
+          } catch (e) {}
+        }
+      });
+    };
+    const interval = setInterval(checkReminders, 60000);
+    return () => clearInterval(interval);
+  }, [authUser, reminders, notificationPermission]);
+
+  // === AI SUGGESTIONS ===
+  const generateAISuggestion = async () => {
+    if (!authUser) return;
+    setAiLoading(true);
+    try {
+      // Build context from user's recent activity
+      const recentIdeas = ideas.slice(0, 5).map(i => i.text).join("; ");
+      const recentHabits = habits.map(h => h.name).join(", ");
+      const activeGoals = goals.filter(g => g.status === "active").map(g => g.title).join(", ");
+      const recentReflections = refs.slice(0, 2).map(r => r.text).join("; ");
+      const context = "User is a creator on Elevation Club. Their recent creative context: " +
+        (recentIdeas ? "Recent ideas: " + recentIdeas + ". " : "") +
+        (recentHabits ? "Daily habits: " + recentHabits + ". " : "") +
+        (activeGoals ? "Active goals: " + activeGoals + ". " : "") +
+        (recentReflections ? "Recent reflections: " + recentReflections + ". " : "");
+
+      const prompt = context + " Based on this context, give ONE specific, actionable creative suggestion for them today. Be encouraging and personal. Keep it under 50 words. No preamble, just the suggestion.";
+
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 200,
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+      const data = await response.json();
+      const text = data.content?.find(c => c.type === "text")?.text?.trim() || "Try something new today!";
+      // Save to db
+      const { data: saved } = await supabase.from("ai_suggestions").insert({ user_id: authUser.id, suggestion: text }).select().single();
+      if (saved) setAiSuggestions(prev => [saved, ...prev]);
+    } catch (e) {
+      console.error("AI suggestion failed", e);
+      alert("Couldn't generate suggestion. Please try again.");
+    }
+    setAiLoading(false);
+  };
+
+  const rateAISuggestion = async (id, liked) => {
+    await supabase.from("ai_suggestions").update({ is_liked: liked }).eq("id", id);
+    setAiSuggestions(prev => prev.map(s => s.id === id ? { ...s, is_liked: liked } : s));
+  };
+
+  // === ANALYTICS ===
+  useEffect(() => {
+    // Build activity map: date -> count
+    if (!authUser) return;
+    const map = {};
+    ideas.forEach(i => {
+      const date = new Date(i.created_at || Date.now()).toISOString().split("T")[0];
+      map[date] = (map[date] || 0) + 1;
+    });
+    posts.filter(p => p.user_id === authUser.id).forEach(p => {
+      const date = new Date(p.created_at).toISOString().split("T")[0];
+      map[date] = (map[date] || 0) + 1;
+    });
+    refs.forEach(r => {
+      const date = new Date(r.created_at || Date.now()).toISOString().split("T")[0];
+      map[date] = (map[date] || 0) + 1;
+    });
+    sessionsAll.forEach(s => {
+      const date = new Date(s.created_at).toISOString().split("T")[0];
+      map[date] = (map[date] || 0) + 1;
+    });
+    habitCheckinsAll.forEach(c => {
+      map[c.checkin_date] = (map[c.checkin_date] || 0) + 1;
+    });
+    setActivityByDate(map);
+  }, [authUser, ideas, posts, refs, sessionsAll, habitCheckinsAll]);
+
   // === Post image upload ===
   const uploadPostImage = async (file) => {
     if (!file || !authUser) return null;
@@ -1344,6 +1485,9 @@ export default function App() {
             </div>
           )}
         </div>
+        <button onClick={() => setShowAISuggest(true)} style={{ background: "none", border: "none", cursor: "pointer", padding: 8, marginRight: 4 }}>
+          <span style={{ fontSize: 20 }}>✨</span>
+        </button>
         <button onClick={() => setShowSearch(true)} style={{ background: "none", border: "none", cursor: "pointer", padding: 8, marginRight: 4 }}>
           <span style={{ fontSize: 20 }}>🔍</span>
         </button>
@@ -1607,6 +1751,160 @@ export default function App() {
     </div>
   );
 
+  // ============ ANALYTICS ============
+  const renderAnalytics = () => {
+    // Compute 12-week heatmap
+    const weeks = 12;
+    const today = new Date();
+    const heatmapData = [];
+    for (let w = weeks - 1; w >= 0; w--) {
+      const week = [];
+      for (let d = 6; d >= 0; d--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - (w * 7 + d));
+        const key = date.toISOString().split("T")[0];
+        week.push({ date: key, count: activityByDate[key] || 0 });
+      }
+      heatmapData.push(week);
+    }
+
+    // Session stats
+    const totalSessions = sessionsAll.length;
+    const totalMinutes = sessionsAll.reduce((s, x) => s + (x.duration_minutes || 0), 0);
+    const avgSession = totalSessions > 0 ? Math.round(totalMinutes / totalSessions) : 0;
+
+    // Habit completion % last 7 days
+    const last7 = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      return d.toISOString().split("T")[0];
+    });
+    const habitStats = habits.map(h => {
+      const checkins = habitCheckinsAll.filter(c => c.habit_id === h.id && last7.includes(c.checkin_date)).length;
+      return { name: h.name, emoji: h.emoji, pct: Math.round((checkins / 7) * 100) };
+    });
+
+    // Top hashtags used
+    const myTags = {};
+    posts.filter(p => p.user_id === authUser?.id).forEach(p => {
+      (postHashtags[p.id] || []).forEach(t => { myTags[t] = (myTags[t] || 0) + 1; });
+    });
+    const topTags = Object.entries(myTags).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+    return (
+      <div style={{ animation: "warpIn 0.4s" }}>
+        <h3 style={{ fontFamily: "'Inter', sans-serif", fontSize: 16, fontWeight: 600, color: C.textPrimary, margin: "0 0 16px" }}>Analytics</h3>
+
+        <div style={{ display: "flex", gap: 4, marginBottom: 16, background: "#F3F4F6", padding: 4, borderRadius: 10 }}>
+          {[
+            { id: "heatmap", label: "Activity" },
+            { id: "sessions", label: "Sessions" },
+            { id: "habits", label: "Habits" },
+            { id: "tags", label: "Tags" },
+          ].map(t => (
+            <button key={t.id} onClick={() => setAnalyticsView(t.id)} style={{
+              flex: 1, padding: "8px 6px", borderRadius: 7, border: "none",
+              background: analyticsView === t.id ? "#FFFFFF" : "transparent",
+              color: analyticsView === t.id ? C.textPrimary : C.textSecondary,
+              fontSize: 12, fontWeight: 500, fontFamily: "'Inter', sans-serif", cursor: "pointer",
+              boxShadow: analyticsView === t.id ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
+            }}>{t.label}</button>
+          ))}
+        </div>
+
+        {analyticsView === "heatmap" && (
+          <Card style={{ padding: 16, marginBottom: 12 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <h4 style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 600, color: C.textPrimary, margin: 0 }}>Activity (12 weeks)</h4>
+              <span style={{ color: C.textMuted, fontSize: 10, fontFamily: "'Inter', sans-serif" }}>{Object.values(activityByDate).reduce((a, b) => a + b, 0)} events</span>
+            </div>
+            <div style={{ display: "flex", gap: 3, overflowX: "auto", paddingBottom: 4 }}>
+              {heatmapData.map((week, wi) => (
+                <div key={wi} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                  {week.map((day, di) => {
+                    const c = day.count;
+                    const bg = c === 0 ? "#F3F4F6" : c === 1 ? "#DCFCE7" : c === 2 ? "#86EFAC" : c <= 4 ? "#22C55E" : "#15803D";
+                    return <div key={di} title={day.date + ": " + c + " events"} style={{ width: 16, height: 16, borderRadius: 3, background: bg }} />;
+                  })}
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 6, marginTop: 12, alignItems: "center", justifyContent: "flex-end" }}>
+              <span style={{ color: C.textMuted, fontSize: 10, fontFamily: "'Inter', sans-serif" }}>Less</span>
+              {["#F3F4F6", "#DCFCE7", "#86EFAC", "#22C55E", "#15803D"].map(c => <div key={c} style={{ width: 12, height: 12, borderRadius: 2, background: c }} />)}
+              <span style={{ color: C.textMuted, fontSize: 10, fontFamily: "'Inter', sans-serif" }}>More</span>
+            </div>
+          </Card>
+        )}
+
+        {analyticsView === "sessions" && (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 12 }}>
+              <Card style={{ padding: 14, textAlign: "center" }}>
+                <div style={{ color: C.textPrimary, fontSize: 22, fontWeight: 700, fontFamily: "'Inter', sans-serif" }}>{totalSessions}</div>
+                <div style={{ color: C.textMuted, fontSize: 10, fontFamily: "'Inter', sans-serif", marginTop: 4, textTransform: "uppercase" }}>Total</div>
+              </Card>
+              <Card style={{ padding: 14, textAlign: "center" }}>
+                <div style={{ color: C.textPrimary, fontSize: 22, fontWeight: 700, fontFamily: "'Inter', sans-serif" }}>{totalMinutes}</div>
+                <div style={{ color: C.textMuted, fontSize: 10, fontFamily: "'Inter', sans-serif", marginTop: 4, textTransform: "uppercase" }}>Minutes</div>
+              </Card>
+              <Card style={{ padding: 14, textAlign: "center" }}>
+                <div style={{ color: C.textPrimary, fontSize: 22, fontWeight: 700, fontFamily: "'Inter', sans-serif" }}>{avgSession}</div>
+                <div style={{ color: C.textMuted, fontSize: 10, fontFamily: "'Inter', sans-serif", marginTop: 4, textTransform: "uppercase" }}>Avg (min)</div>
+              </Card>
+            </div>
+            <Card style={{ padding: 14 }}>
+              <h4 style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 600, color: C.textPrimary, margin: "0 0 10px" }}>Recent sessions</h4>
+              {sessionsAll.slice(0, 10).map(s => (
+                <div key={s.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #F3F4F6" }}>
+                  <span style={{ color: C.textPrimary, fontSize: 12, fontFamily: "'Inter', sans-serif" }}>{s.session_type || "Session"}</span>
+                  <span style={{ color: C.textMuted, fontSize: 11, fontFamily: "'Inter', sans-serif" }}>{s.duration_minutes} min • {new Date(s.created_at).toLocaleDateString()}</span>
+                </div>
+              ))}
+              {sessionsAll.length === 0 && <p style={{ color: C.textMuted, fontSize: 12, fontFamily: "'Inter', sans-serif", textAlign: "center", padding: "8px 0" }}>No sessions logged yet</p>}
+            </Card>
+          </>
+        )}
+
+        {analyticsView === "habits" && (
+          <Card style={{ padding: 14 }}>
+            <h4 style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 600, color: C.textPrimary, margin: "0 0 12px" }}>Habit consistency (last 7 days)</h4>
+            {habitStats.length === 0 ? (
+              <p style={{ color: C.textMuted, fontSize: 12, fontFamily: "'Inter', sans-serif", textAlign: "center", padding: 8 }}>No habits yet</p>
+            ) : (
+              habitStats.map((h, i) => (
+                <div key={i} style={{ marginBottom: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <span style={{ color: C.textPrimary, fontSize: 12, fontFamily: "'Inter', sans-serif" }}>{h.emoji} {h.name}</span>
+                    <span style={{ color: C.textMuted, fontSize: 11, fontFamily: "'Inter', sans-serif" }}>{h.pct}%</span>
+                  </div>
+                  <div style={{ height: 6, background: "#F3F4F6", borderRadius: 3, overflow: "hidden" }}>
+                    <div style={{ width: h.pct + "%", height: "100%", background: h.pct >= 80 ? "#059669" : h.pct >= 50 ? "#F59E0B" : "#EF4444", transition: "width 0.3s" }} />
+                  </div>
+                </div>
+              ))
+            )}
+          </Card>
+        )}
+
+        {analyticsView === "tags" && (
+          <Card style={{ padding: 14 }}>
+            <h4 style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 600, color: C.textPrimary, margin: "0 0 12px" }}>Your top hashtags</h4>
+            {topTags.length === 0 ? (
+              <p style={{ color: C.textMuted, fontSize: 12, fontFamily: "'Inter', sans-serif", textAlign: "center", padding: 8 }}>No hashtags in your posts yet. Try adding #hashtags to your captions!</p>
+            ) : (
+              topTags.map(([tag, count], i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: i < topTags.length - 1 ? "1px solid #F3F4F6" : "none" }}>
+                  <span style={{ color: C.textPrimary, fontSize: 13, fontFamily: "'Inter', sans-serif", fontWeight: 500 }}>#{tag}</span>
+                  <span style={{ color: C.textMuted, fontSize: 12, fontFamily: "'Inter', sans-serif" }}>{count} {count === 1 ? "post" : "posts"}</span>
+                </div>
+              ))
+            )}
+          </Card>
+        )}
+      </div>
+    );
+  };
+
   // ============ WORKSPACE (Ideas + Tasks + Reflect) ============
   const renderWorkspace = () => (
     <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.5s" }}>
@@ -1620,6 +1918,7 @@ export default function App() {
           { id: "goals", label: "Goals" },
           { id: "vision", label: "Vision" },
           { id: "reflect", label: "Reflect" },
+          { id: "analytics", label: "Analytics" },
         ].map(t => (
           <button key={t.id} onClick={() => setWsTab(t.id)} style={{
             flex: "0 0 auto", padding: "8px 14px", borderRadius: 7, border: "none", whiteSpace: "nowrap",
@@ -1637,6 +1936,7 @@ export default function App() {
       {wsTab === "goals" && renderGoals()}
       {wsTab === "vision" && renderVision()}
       {wsTab === "reflect" && renderReflect()}
+      {wsTab === "analytics" && renderAnalytics()}
     </div>
   );
 
@@ -1874,6 +2174,46 @@ export default function App() {
         <Btn onClick={async () => { if (!authUser) return; await supabase.from("profiles").update({ name: editName, bio: editBio }).eq("id", authUser.id); setUser(editName); setProfilePage(null); }} full color={C.cyan}>Save Changes</Btn>
       </div>
     );
+    if (profilePage === "reminders") return (
+      <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.5s" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button onClick={() => setProfilePage(null)} style={{ background: "none", border: "none", color: C.textPrimary, fontSize: 20, cursor: "pointer" }}>←</button>
+            <h2 style={{ fontFamily: "'Inter', sans-serif", color: C.textPrimary, fontSize: 20, fontWeight: 700, margin: 0 }}>Reminders</h2>
+          </div>
+          <button onClick={() => setShowReminderForm(!showReminderForm)} style={{ background: "#0A0A0A", color: "#fff", border: "none", padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>{showReminderForm ? "Cancel" : "+ Add"}</button>
+        </div>
+        {notificationPermission !== "granted" && (
+          <Card style={{ padding: 14, marginBottom: 16, background: "#FEF3C7", border: "1px solid #FDE68A" }}>
+            <p style={{ color: "#92400E", fontSize: 12, fontFamily: "'Inter', sans-serif", margin: "0 0 8px" }}>Enable browser notifications to receive reminders</p>
+            <Btn onClick={requestNotificationPermission} full>Enable Notifications</Btn>
+          </Card>
+        )}
+        {showReminderForm && (
+          <Card style={{ padding: 14, marginBottom: 14 }}>
+            <input value={newReminder.title} onChange={e => setNewReminder({ ...newReminder, title: e.target.value })} placeholder="Reminder title (e.g. Time to meditate)" style={{ width: "100%", padding: "10px 12px", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 8, fontSize: 13, fontFamily: "'Inter', sans-serif", outline: "none", boxSizing: "border-box", marginBottom: 10 }} />
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+              <span style={{ fontSize: 12, color: C.textSecondary, fontFamily: "'Inter', sans-serif" }}>Time:</span>
+              <input type="time" value={newReminder.time} onChange={e => setNewReminder({ ...newReminder, time: e.target.value })} style={{ padding: "8px 12px", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 8, fontSize: 13, fontFamily: "'Inter', sans-serif", outline: "none" }} />
+            </div>
+            <Btn onClick={addReminder} disabled={!newReminder.title.trim()} full>Create Reminder</Btn>
+          </Card>
+        )}
+        {reminders.length === 0 && !showReminderForm && (
+          <p style={{ color: C.textMuted, fontSize: 12, fontFamily: "'Inter', sans-serif", textAlign: "center", padding: 20 }}>No reminders yet. Add one to get daily nudges!</p>
+        )}
+        {reminders.map(r => (
+          <Card key={r.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: 14, marginBottom: 8 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 10, background: "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>⏰</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ color: C.textPrimary, fontSize: 14, fontWeight: 600, fontFamily: "'Inter', sans-serif" }}>{r.title}</div>
+              <div style={{ color: C.textMuted, fontSize: 11, fontFamily: "'Inter', sans-serif", marginTop: 2 }}>{r.time} daily</div>
+            </div>
+            <button onClick={() => deleteReminder(r.id)} style={{ background: "none", border: "none", color: C.textMuted, fontSize: 16, cursor: "pointer" }}>×</button>
+          </Card>
+        ))}
+      </div>
+    );
     if (profilePage === "collections") return (
       <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.5s" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
@@ -2089,6 +2429,11 @@ export default function App() {
             </Card>
           </>
         )}
+        <Card onClick={() => setProfilePage("reminders")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", marginBottom: 8 }}>
+          <span style={{ fontSize: 16 }}>⏰</span>
+          <span style={{ color: C.textPrimary, fontSize: 12, fontFamily: "'Space Mono', monospace", flex: 1 }}>Reminders</span>
+          <span style={{ color: C.textMuted }}>→</span>
+        </Card>
         <Card onClick={() => setProfilePage("collections")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", marginBottom: 8 }}>
           <span style={{ fontSize: 16 }}>🔖</span>
           <span style={{ color: C.textPrimary, fontSize: 12, fontFamily: "'Space Mono', monospace", flex: 1 }}>Saved Posts</span>
@@ -2307,6 +2652,40 @@ export default function App() {
     );
   };
 
+  // === AI Suggestion overlay ===
+  const renderAISuggest = () => {
+    if (!showAISuggest) return null;
+    return (
+      <div style={{ position: "fixed", inset: 0, background: "#FFFFFF", zIndex: 150, overflowY: "auto", maxWidth: 480, margin: "0 auto" }}>
+        <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.3s" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+            <button onClick={() => setShowAISuggest(false)} style={{ background: "none", border: "none", color: C.textPrimary, fontSize: 20, cursor: "pointer" }}>←</button>
+            <h2 style={{ fontFamily: "'Inter', sans-serif", color: C.textPrimary, fontSize: 20, fontWeight: 700, margin: 0 }}>AI Suggestions</h2>
+          </div>
+          <Card style={{ padding: 16, marginBottom: 16, background: "#F9FAFB" }}>
+            <p style={{ color: C.textSecondary, fontSize: 12, fontFamily: "'Inter', sans-serif", margin: "0 0 12px", lineHeight: 1.5 }}>Get personalized creative suggestions based on your ideas, habits, and goals.</p>
+            <Btn onClick={generateAISuggestion} disabled={aiLoading} full>{aiLoading ? "Generating..." : "✨ Generate New Suggestion"}</Btn>
+          </Card>
+          {aiSuggestions.map(s => (
+            <Card key={s.id} style={{ padding: 16, marginBottom: 10 }}>
+              <p style={{ color: C.textPrimary, fontSize: 14, fontFamily: "'Inter', sans-serif", lineHeight: 1.6, margin: "0 0 10px" }}>{s.suggestion}</p>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ color: C.textMuted, fontSize: 10, fontFamily: "'Inter', sans-serif" }}>{new Date(s.created_at).toLocaleDateString()}</span>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button onClick={() => rateAISuggestion(s.id, true)} style={{ background: s.is_liked === true ? "#DCFCE7" : "none", border: "1px solid " + (s.is_liked === true ? "#86EFAC" : "#E5E7EB"), color: s.is_liked === true ? "#059669" : C.textMuted, borderRadius: 12, padding: "4px 10px", fontSize: 11, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>👍</button>
+                  <button onClick={() => rateAISuggestion(s.id, false)} style={{ background: s.is_liked === false ? "#FEE2E2" : "none", border: "1px solid " + (s.is_liked === false ? "#FCA5A5" : "#E5E7EB"), color: s.is_liked === false ? "#DC2626" : C.textMuted, borderRadius: 12, padding: "4px 10px", fontSize: 11, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>👎</button>
+                </div>
+              </div>
+            </Card>
+          ))}
+          {aiSuggestions.length === 0 && !aiLoading && (
+            <p style={{ color: C.textMuted, fontSize: 12, fontFamily: "'Inter', sans-serif", textAlign: "center", padding: 20 }}>No suggestions yet. Tap generate to get your first!</p>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const tabs = { home: renderHome, workspace: renderWorkspace, community: renderCommunity, profile: renderProfile };
 
   return (
@@ -2317,6 +2696,7 @@ export default function App() {
       {renderNotifications()}
       {renderSearch()}
       {renderHashtagView()}
+      {renderAISuggest()}
       <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "#FFFFFF", backdropFilter: "blur(24px)", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-around", padding: "10px 4px", paddingBottom: "max(10px, env(safe-area-inset-bottom))", zIndex: 50 }}>
         <NTab icon={Icons.Home} label="Home" id="home" />
         <NTab icon={Icons.Bulb} label="Workspace" id="workspace" />

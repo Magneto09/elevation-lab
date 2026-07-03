@@ -1,10 +1,10 @@
 {
-  "name": "Elevation Lab",
-  "short_name": "Elevate",
-  "description": "Elevate your mind. Create something real.",
+  "name": "Elevation Club",
+  "short_name": "Elevation",
+  "description": "Portal to a new world.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0A1628",
-  "theme_color": "#7AE5C4",
+  "background_color": "#FFFFFF",
+  "theme_color": "#0A0A0A",
   "orientation": "portrait"
 }

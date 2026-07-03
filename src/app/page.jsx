@@ -1046,8 +1046,8 @@ export default function App() {
           <Card key={p.id} style={{ marginBottom: 16, overflow: "hidden" }}>
             <div style={{ padding: 16 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                <div style={{ width: 32, height: 32, borderRadius: "50%", background: `hsla(${hue},80%,50%,0.2)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: `hsl(${hue},80%,70%)`, fontFamily: "'Syne', sans-serif", fontWeight: 700 }}>{authorName[0]?.toUpperCase()}</div>
-                <span style={{ color: C.textPrimary, fontSize: 12, fontWeight: 700, fontFamily: "'Syne', sans-serif" }}>{authorName}</span>
+                <div onClick={() => openUserProfile(p.user_id)} style={{ width: 32, height: 32, borderRadius: "50%", background: "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: C.textPrimary, fontFamily: "'Inter', sans-serif", fontWeight: 600, cursor: "pointer" }}>{authorName[0]?.toUpperCase()}</div>
+                <span onClick={() => openUserProfile(p.user_id)} style={{ color: C.textPrimary, fontSize: 13, fontWeight: 600, fontFamily: "'Inter', sans-serif", cursor: "pointer" }}>{authorName}</span>
                 <span style={{ color: C.textMuted, fontSize: 9, fontFamily: "'Space Mono', monospace", marginLeft: "auto" }}>{timeAgo}</span>
               </div>
               {p.caption && <p style={{ color: C.textSecondary, fontSize: 13, fontFamily: "'Inter', sans-serif", lineHeight: 1.6, margin: "0 0 12px" }}>{p.caption}</p>}

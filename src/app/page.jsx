@@ -557,6 +557,20 @@ export default function App() {
   const [showVisionForm, setShowVisionForm] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [viewingProfile, setViewingProfile] = useState(null);
+  const [viewingUserPosts, setViewingUserPosts] = useState([]);
+  const [viewingUserData, setViewingUserData] = useState(null);
+  const [viewingUserFollowers, setViewingUserFollowers] = useState(0);
+  const [viewingUserFollowing, setViewingUserFollowing] = useState(0);
+  const [amFollowing, setAmFollowing] = useState(false);
+  const [myFollowingIds, setMyFollowingIds] = useState([]);
+  const [openComments, setOpenComments] = useState(null);
+  const [comments, setComments] = useState({});
+  const [newComment, setNewComment] = useState("");
+  const [commentCounts, setCommentCounts] = useState({});
+  const [followerCounts, setFollowerCounts] = useState({});
+  const [myFollowerCount, setMyFollowerCount] = useState(0);
+  const [myFollowingCount, setMyFollowingCount] = useState(0);
   const [user, setUser] = useState("");
   const [authUser, setAuthUser] = useState(null);
   const [ideas, setIdeas] = useState([]);
@@ -636,6 +650,21 @@ export default function App() {
       .then(({ data }) => { if (data) setGoals(data); });
     supabase.from("vision_items").select("*").eq("user_id", uid).order("position", { ascending: true })
       .then(({ data }) => { if (data) setVisionItems(data); });
+    supabase.from("followers").select("following_id").eq("follower_id", uid)
+      .then(({ data }) => { if (data) setMyFollowingIds(data.map(d => d.following_id)); });
+    supabase.from("comments").select("post_id")
+      .then(({ data }) => {
+        if (data) {
+          const counts = {};
+          data.forEach(c => { counts[c.post_id] = (counts[c.post_id] || 0) + 1; });
+          setCommentCounts(counts);
+        }
+      });
+    // My follower/following counts
+    supabase.from("followers").select("*", { count: "exact", head: true }).eq("following_id", uid)
+      .then(({ count }) => { setMyFollowerCount(count || 0); });
+    supabase.from("followers").select("*", { count: "exact", head: true }).eq("follower_id", uid)
+      .then(({ count }) => { setMyFollowingCount(count || 0); });
     // Load reaction counts for all posts
     supabase.from("reactions").select("post_id, reaction_type")
       .then(({ data }) => {
@@ -790,6 +819,63 @@ export default function App() {
   const deleteVisionItem = async (id) => {
     await supabase.from("vision_items").delete().eq("id", id);
     setVisionItems(visionItems.filter(v => v.id !== id));
+  };
+
+  // === FOLLOW / UNFOLLOW ===
+  const toggleFollow = async (targetUserId) => {
+    if (!authUser || targetUserId === authUser.id) return;
+    const isFollowing = myFollowingIds.includes(targetUserId);
+    if (isFollowing) {
+      await supabase.from("followers").delete().eq("follower_id", authUser.id).eq("following_id", targetUserId);
+      setMyFollowingIds(prev => prev.filter(id => id !== targetUserId));
+      setAmFollowing(false);
+      if (viewingProfile === targetUserId) setViewingUserFollowers(prev => Math.max(0, prev - 1));
+    } else {
+      await supabase.from("followers").insert({ follower_id: authUser.id, following_id: targetUserId });
+      setMyFollowingIds(prev => [...prev, targetUserId]);
+      setAmFollowing(true);
+      if (viewingProfile === targetUserId) setViewingUserFollowers(prev => prev + 1);
+    }
+  };
+
+  const openUserProfile = async (userId) => {
+    if (!userId) return;
+    if (userId === authUser?.id) { setTab("profile"); return; }
+    setViewingProfile(userId);
+    const { data: profile } = await supabase.from("profiles").select("*").eq("id", userId).single();
+    if (profile) setViewingUserData(profile);
+    const { data: userPosts } = await supabase.from("posts").select("*, profiles(name)").eq("user_id", userId).order("created_at", { ascending: false });
+    if (userPosts) setViewingUserPosts(userPosts);
+    const { count: followers } = await supabase.from("followers").select("*", { count: "exact", head: true }).eq("following_id", userId);
+    setViewingUserFollowers(followers || 0);
+    const { count: following } = await supabase.from("followers").select("*", { count: "exact", head: true }).eq("follower_id", userId);
+    setViewingUserFollowing(following || 0);
+    setAmFollowing(myFollowingIds.includes(userId));
+  };
+
+  const openPostComments = async (postId) => {
+    if (openComments === postId) { setOpenComments(null); return; }
+    setOpenComments(postId);
+    if (!comments[postId]) {
+      const { data } = await supabase.from("comments").select("*, profiles(name)").eq("post_id", postId).order("created_at", { ascending: true });
+      if (data) setComments(prev => ({ ...prev, [postId]: data }));
+    }
+  };
+
+  const addComment = async (postId) => {
+    if (!newComment.trim() || !authUser) return;
+    const { data } = await supabase.from("comments").insert({ post_id: postId, user_id: authUser.id, content: newComment }).select("*, profiles(name)").single();
+    if (data) {
+      setComments(prev => ({ ...prev, [postId]: [...(prev[postId] || []), data] }));
+      setCommentCounts(prev => ({ ...prev, [postId]: (prev[postId] || 0) + 1 }));
+    }
+    setNewComment("");
+  };
+
+  const deleteComment = async (commentId, postId) => {
+    await supabase.from("comments").delete().eq("id", commentId);
+    setComments(prev => ({ ...prev, [postId]: (prev[postId] || []).filter(c => c.id !== commentId) }));
+    setCommentCounts(prev => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 1) - 1) }));
   };
 
   // === Post image upload ===
@@ -966,18 +1052,42 @@ export default function App() {
               </div>
               {p.caption && <p style={{ color: C.textSecondary, fontSize: 13, fontFamily: "'Inter', sans-serif", lineHeight: 1.6, margin: "0 0 12px" }}>{p.caption}</p>}
               {p.media_url && <img src={p.media_url} alt="" style={{ width: "100%", maxHeight: 360, objectFit: "cover", borderRadius: 8, display: "block", marginBottom: 12 }} />}
-              <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 {[{e:"🙏",t:"appreciation"},{e:"✨",t:"inspiration"},{e:"🤔",t:"curiosity"}].map(r => {
                   const active = myReactions[p.id]?.[r.t];
                   const count = reactionCounts[p.id]?.[r.t] || 0;
                   return (
-                    <button key={r.t} onClick={() => reactToPost(p.id, r.t)} style={{ display: "flex", alignItems: "center", gap: 4, background: active ? `${C.green}15` : "none", border: active ? `1px solid ${C.green}40` : "1px solid transparent", color: active ? C.cyan : C.textMuted, cursor: "pointer", fontSize: 12, fontFamily: "'Space Mono', monospace", padding: "5px 10px", borderRadius: 16, transition: "all 0.3s" }}>
+                    <button key={r.t} onClick={() => reactToPost(p.id, r.t)} style={{ display: "flex", alignItems: "center", gap: 4, background: active ? "#F3F4F6" : "none", border: active ? "1px solid #D1D5DB" : "1px solid transparent", color: active ? C.textPrimary : C.textMuted, cursor: "pointer", fontSize: 12, fontFamily: "'Inter', sans-serif", padding: "5px 10px", borderRadius: 16, transition: "all 0.2s" }}>
                       <span>{r.e}</span>
-                      {count > 0 && <span style={{ fontSize: 10 }}>{count}</span>}
+                      {count > 0 && <span style={{ fontSize: 11 }}>{count}</span>}
                     </button>
                   );
                 })}
+                <button onClick={() => openPostComments(p.id)} style={{ display: "flex", alignItems: "center", gap: 4, background: openComments === p.id ? "#F3F4F6" : "none", border: openComments === p.id ? "1px solid #D1D5DB" : "1px solid transparent", color: openComments === p.id ? C.textPrimary : C.textMuted, cursor: "pointer", fontSize: 12, fontFamily: "'Inter', sans-serif", padding: "5px 10px", borderRadius: 16, marginLeft: "auto" }}>
+                  💬 {commentCounts[p.id] > 0 ? commentCounts[p.id] : ""}
+                </button>
               </div>
+              {openComments === p.id && (
+                <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid #F3F4F6" }}>
+                  {(comments[p.id] || []).map(c => (
+                    <div key={c.id} style={{ display: "flex", gap: 8, marginBottom: 10, alignItems: "flex-start" }}>
+                      <div onClick={() => openUserProfile(c.user_id)} style={{ width: 26, height: 26, borderRadius: "50%", background: "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: C.textPrimary, fontWeight: 600, cursor: "pointer", flexShrink: 0 }}>{c.profiles?.name?.[0]?.toUpperCase() || "?"}</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span onClick={() => openUserProfile(c.user_id)} style={{ color: C.textPrimary, fontSize: 12, fontWeight: 600, fontFamily: "'Inter', sans-serif", cursor: "pointer" }}>{c.profiles?.name || "Anonymous"}</span>
+                          <span style={{ color: C.textMuted, fontSize: 10, fontFamily: "'Inter', sans-serif" }}>{new Date(c.created_at).toLocaleDateString()}</span>
+                          {c.user_id === authUser?.id && <button onClick={() => deleteComment(c.id, p.id)} style={{ background: "none", border: "none", color: C.textMuted, fontSize: 11, cursor: "pointer", marginLeft: "auto" }}>×</button>}
+                        </div>
+                        <p style={{ color: C.textPrimary, fontSize: 12, fontFamily: "'Inter', sans-serif", lineHeight: 1.5, margin: "2px 0 0" }}>{c.content}</p>
+                      </div>
+                    </div>
+                  ))}
+                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                    <input value={openComments === p.id ? newComment : ""} onChange={e => setNewComment(e.target.value)} onKeyDown={e => e.key === "Enter" && addComment(p.id)} placeholder="Write a comment..." style={{ flex: 1, padding: "8px 12px", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 20, color: C.textPrimary, fontSize: 12, fontFamily: "'Inter', sans-serif", outline: "none" }} />
+                    <button onClick={() => addComment(p.id)} disabled={!newComment.trim()} style={{ background: newComment.trim() ? "#0A0A0A" : "#F3F4F6", color: newComment.trim() ? "#fff" : C.textMuted, border: "none", borderRadius: 20, padding: "8px 16px", fontSize: 12, fontWeight: 500, cursor: newComment.trim() ? "pointer" : "default", fontFamily: "'Inter', sans-serif" }}>Send</button>
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
         );
@@ -1298,11 +1408,19 @@ export default function App() {
           <p style={{ color: C.textSecondary, fontSize: 11, fontFamily: "'Space Mono', monospace", margin: "0 0 10px" }}>{editBio || "Portal to a new world"}</p>
           <button onClick={() => setProfilePage("edit")} style={{ background: "none", border: `1px solid ${C.cyan}40`, borderRadius: 20, padding: "5px 16px", color: C.cyan, fontSize: 10, fontFamily: "'Space Mono', monospace", cursor: "pointer" }}>Edit Profile</button>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 28 }}>
-          {[{ l: "Ideas", v: ideas.length, c: C.gold },{ l: "Sessions", v: sessionCount, c: C.cyan },{ l: "Circles", v: myCircles.length, c: C.magenta }].map((s,i) => (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 }}>
+          {[{ l: "Posts", v: posts.filter(p => p.user_id === authUser?.id).length, c: C.textPrimary },{ l: "Followers", v: myFollowerCount, c: C.textPrimary },{ l: "Following", v: myFollowingCount, c: C.textPrimary }].map((s,i) => (
             <Card key={i} style={{ textAlign: "center", padding: "16px 8px" }}>
-              <div className="text-glow-pulse" style={{ color: s.c, fontSize: 22, fontWeight: 800, fontFamily: "'Syne', sans-serif" }}>{s.v}</div>
-              <div style={{ color: C.textMuted, fontSize: 9, fontFamily: "'Space Mono', monospace", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.1em" }}>{s.l}</div>
+              <div style={{ color: s.c, fontSize: 22, fontWeight: 700, fontFamily: "'Inter', sans-serif" }}>{s.v}</div>
+              <div style={{ color: C.textMuted, fontSize: 9, fontFamily: "'Inter', sans-serif", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.1em" }}>{s.l}</div>
+            </Card>
+          ))}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 28 }}>
+          {[{ l: "Ideas", v: ideas.length, c: C.textPrimary },{ l: "Sessions", v: sessionCount, c: C.textPrimary },{ l: "Circles", v: myCircles.length, c: C.textPrimary }].map((s,i) => (
+            <Card key={"stats2-"+i} style={{ textAlign: "center", padding: "16px 8px" }}>
+              <div style={{ color: s.c, fontSize: 22, fontWeight: 700, fontFamily: "'Inter', sans-serif" }}>{s.v}</div>
+              <div style={{ color: C.textMuted, fontSize: 9, fontFamily: "'Inter', sans-serif", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.1em" }}>{s.l}</div>
             </Card>
           ))}
         </div>
@@ -1340,12 +1458,63 @@ export default function App() {
     }}>{children}</button>
   );
 
+  // === Render other user's profile as an overlay ===
+  const renderUserProfile = () => {
+    if (!viewingUserData) return null;
+    return (
+      <div style={{ position: "fixed", inset: 0, background: "#FFFFFF", zIndex: 100, overflowY: "auto", maxWidth: 480, margin: "0 auto" }}>
+        <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.3s" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+            <button onClick={() => { setViewingProfile(null); setViewingUserData(null); }} style={{ background: "none", border: "none", color: C.textPrimary, fontSize: 20, cursor: "pointer" }}>←</button>
+            <h2 style={{ fontFamily: "'Inter', sans-serif", color: C.textPrimary, fontSize: 18, fontWeight: 600, margin: 0 }}>{viewingUserData.name || "User"}</h2>
+          </div>
+          <div style={{ textAlign: "center", marginBottom: 24 }}>
+            <div style={{ width: 88, height: 88, borderRadius: "50%", background: "#F3F4F6", margin: "0 auto 14px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32, color: C.textPrimary, fontFamily: "'Inter', sans-serif", fontWeight: 700 }}>
+              {viewingUserData.name?.[0]?.toUpperCase() || "?"}
+            </div>
+            <h3 style={{ fontFamily: "'Inter', sans-serif", fontSize: 20, fontWeight: 700, margin: "0 0 4px", color: C.textPrimary }}>{viewingUserData.name || "Anonymous"}</h3>
+            {viewingUserData.bio && <p style={{ color: C.textSecondary, fontSize: 12, fontFamily: "'Inter', sans-serif", margin: "0 0 14px", lineHeight: 1.5 }}>{viewingUserData.bio}</p>}
+            {viewingUserData.id !== authUser?.id && (
+              <button onClick={() => toggleFollow(viewingUserData.id)} style={{ background: amFollowing ? "#F3F4F6" : "#0A0A0A", color: amFollowing ? C.textPrimary : "#fff", border: amFollowing ? "1px solid #E5E7EB" : "none", padding: "8px 24px", borderRadius: 20, fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>{amFollowing ? "Following" : "Follow"}</button>
+            )}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 28 }}>
+            <Card style={{ textAlign: "center", padding: "16px 8px" }}>
+              <div style={{ color: C.textPrimary, fontSize: 20, fontWeight: 700, fontFamily: "'Inter', sans-serif" }}>{viewingUserPosts.length}</div>
+              <div style={{ color: C.textMuted, fontSize: 10, fontFamily: "'Inter', sans-serif", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Posts</div>
+            </Card>
+            <Card style={{ textAlign: "center", padding: "16px 8px" }}>
+              <div style={{ color: C.textPrimary, fontSize: 20, fontWeight: 700, fontFamily: "'Inter', sans-serif" }}>{viewingUserFollowers}</div>
+              <div style={{ color: C.textMuted, fontSize: 10, fontFamily: "'Inter', sans-serif", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Followers</div>
+            </Card>
+            <Card style={{ textAlign: "center", padding: "16px 8px" }}>
+              <div style={{ color: C.textPrimary, fontSize: 20, fontWeight: 700, fontFamily: "'Inter', sans-serif" }}>{viewingUserFollowing}</div>
+              <div style={{ color: C.textMuted, fontSize: 10, fontFamily: "'Inter', sans-serif", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Following</div>
+            </Card>
+          </div>
+          <h3 style={{ fontFamily: "'Inter', sans-serif", fontSize: 15, fontWeight: 600, color: C.textPrimary, margin: "0 0 12px" }}>Posts</h3>
+          {viewingUserPosts.length === 0 && <p style={{ color: C.textMuted, fontSize: 12, fontFamily: "'Inter', sans-serif", textAlign: "center", padding: 20 }}>No posts yet.</p>}
+          {viewingUserPosts.map(p => (
+            <Card key={p.id} style={{ marginBottom: 12, overflow: "hidden" }}>
+              <div style={{ padding: 14 }}>
+                {p.caption && <p style={{ color: C.textPrimary, fontSize: 13, fontFamily: "'Inter', sans-serif", lineHeight: 1.5, margin: "0 0 10px" }}>{p.caption}</p>}
+                {p.media_url && <img src={p.media_url} alt="" style={{ width: "100%", maxHeight: 300, objectFit: "cover", borderRadius: 8, display: "block" }} />}
+                <div style={{ color: C.textMuted, fontSize: 10, fontFamily: "'Inter', sans-serif", marginTop: 8 }}>{new Date(p.created_at).toLocaleDateString()}</div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const tabs = { home: renderHome, workspace: renderWorkspace, community: renderCommunity, profile: renderProfile };
 
   return (
     <div style={{ background: C.bg, minHeight: "100vh", maxWidth: 480, margin: "0 auto", position: "relative" }}>
       <TripBg />
       <div style={{ position: "relative", zIndex: 1 }}>{tabs[tab]?.() || renderHome()}</div>
+      {viewingProfile && renderUserProfile()}
       <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "#FFFFFF", backdropFilter: "blur(24px)", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-around", padding: "10px 4px", paddingBottom: "max(10px, env(safe-area-inset-bottom))", zIndex: 50 }}>
         <NTab icon={Icons.Home} label="Home" id="home" />
         <NTab icon={Icons.Bulb} label="Workspace" id="workspace" />

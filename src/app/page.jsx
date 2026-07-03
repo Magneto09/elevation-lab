@@ -601,7 +601,18 @@ export default function App() {
   const [suggestedUsers, setSuggestedUsers] = useState([]);
   const [viewingHashtag, setViewingHashtag] = useState(null);
   const [hashtagPosts, setHashtagPosts] = useState([]);
-  const [postHashtags, setPostHashtags] = useState({}); // { post_id: [tags] }
+  const [postHashtags, setPostHashtags] = useState({});
+  const [bookmarks, setBookmarks] = useState([]);
+  const [bookmarkedIds, setBookmarkedIds] = useState(new Set());
+  const [collections, setCollections] = useState([]);
+  const [showCollectionModal, setShowCollectionModal] = useState(false);
+  const [newCollection, setNewCollection] = useState({ name: "", description: "" });
+  const [viewingCollection, setViewingCollection] = useState(null);
+  const [viewingCollectionPosts, setViewingCollectionPosts] = useState([]);
+  const [portfolioItems, setPortfolioItems] = useState([]);
+  const [viewingUserPortfolio, setViewingUserPortfolio] = useState([]);
+  const [showAddToCollection, setShowAddToCollection] = useState(null); // post_id
+  const [exportingBoard, setExportingBoard] = useState(false);
   const [user, setUser] = useState("");
   const [authUser, setAuthUser] = useState(null);
   const [ideas, setIdeas] = useState([]);
@@ -725,6 +736,20 @@ export default function App() {
           setPostHashtags(map);
         }
       });
+    // Load my bookmarks
+    supabase.from("bookmarks").select("post_id, collection_id, created_at").eq("user_id", uid)
+      .then(({ data }) => {
+        if (data) {
+          setBookmarks(data);
+          setBookmarkedIds(new Set(data.map(b => b.post_id)));
+        }
+      });
+    // Load my collections
+    supabase.from("collections").select("*").eq("user_id", uid).order("created_at", { ascending: false })
+      .then(({ data }) => { if (data) setCollections(data); });
+    // Load my portfolio
+    supabase.from("portfolio_items").select("*").eq("user_id", uid).order("position", { ascending: true })
+      .then(({ data }) => { if (data) setPortfolioItems(data); });
     // Load reaction counts for all posts
     supabase.from("reactions").select("post_id, reaction_type")
       .then(({ data }) => {
@@ -914,6 +939,7 @@ export default function App() {
     const { count: following } = await supabase.from("followers").select("*", { count: "exact", head: true }).eq("follower_id", userId);
     setViewingUserFollowing(following || 0);
     setAmFollowing(myFollowingIds.includes(userId));
+    loadUserPortfolio(userId);
   };
 
   const openPostComments = async (postId) => {
@@ -1102,6 +1128,173 @@ export default function App() {
     // Sort by reactions desc
     const sorted = recentPosts.sort((a, b) => (rxCounts[b.id] || 0) - (rxCounts[a.id] || 0));
     setPosts(sorted);
+  };
+
+  // === BOOKMARKS ===
+  const toggleBookmark = async (postId, collectionId = null) => {
+    if (!authUser) return;
+    if (bookmarkedIds.has(postId)) {
+      await supabase.from("bookmarks").delete().eq("user_id", authUser.id).eq("post_id", postId);
+      setBookmarkedIds(prev => { const s = new Set(prev); s.delete(postId); return s; });
+      setBookmarks(prev => prev.filter(b => b.post_id !== postId));
+    } else {
+      const { data } = await supabase.from("bookmarks").insert({ user_id: authUser.id, post_id: postId, collection_id: collectionId }).select().single();
+      if (data) {
+        setBookmarkedIds(prev => new Set([...prev, postId]));
+        setBookmarks(prev => [data, ...prev]);
+      }
+    }
+  };
+
+  const moveBookmarkToCollection = async (postId, collectionId) => {
+    if (!authUser) return;
+    await supabase.from("bookmarks").update({ collection_id: collectionId }).eq("user_id", authUser.id).eq("post_id", postId);
+    setBookmarks(prev => prev.map(b => b.post_id === postId ? { ...b, collection_id: collectionId } : b));
+    setShowAddToCollection(null);
+  };
+
+  // === COLLECTIONS ===
+  const createCollection = async () => {
+    if (!newCollection.name.trim() || !authUser) return;
+    const { data } = await supabase.from("collections").insert({ user_id: authUser.id, name: newCollection.name, description: newCollection.description }).select().single();
+    if (data) setCollections(prev => [data, ...prev]);
+    setNewCollection({ name: "", description: "" });
+    setShowCollectionModal(false);
+  };
+
+  const deleteCollection = async (id) => {
+    await supabase.from("collections").delete().eq("id", id);
+    setCollections(prev => prev.filter(c => c.id !== id));
+  };
+
+  const openCollection = async (col) => {
+    setViewingCollection(col);
+    const bmInCol = bookmarks.filter(b => b.collection_id === col.id).map(b => b.post_id);
+    if (bmInCol.length === 0) { setViewingCollectionPosts([]); return; }
+    const { data } = await supabase.from("posts").select("*, profiles(name)").in("id", bmInCol).order("created_at", { ascending: false });
+    if (data) setViewingCollectionPosts(data);
+  };
+
+  // === PORTFOLIO ===
+  const addToPortfolio = async (postId) => {
+    if (!authUser) return;
+    const post = posts.find(p => p.id === postId) || bookmarks.find(b => b.post_id === postId);
+    const { data } = await supabase.from("portfolio_items").insert({ user_id: authUser.id, post_id: postId, position: portfolioItems.length }).select().single();
+    if (data) setPortfolioItems(prev => [...prev, data]);
+  };
+
+  const removeFromPortfolio = async (id) => {
+    await supabase.from("portfolio_items").delete().eq("id", id);
+    setPortfolioItems(prev => prev.filter(p => p.id !== id));
+  };
+
+  const loadUserPortfolio = async (userId) => {
+    const { data: items } = await supabase.from("portfolio_items").select("*").eq("user_id", userId).order("position", { ascending: true });
+    if (!items || items.length === 0) { setViewingUserPortfolio([]); return; }
+    // Get referenced posts
+    const postIds = items.filter(i => i.post_id).map(i => i.post_id);
+    if (postIds.length > 0) {
+      const { data: itemPosts } = await supabase.from("posts").select("*, profiles(name)").in("id", postIds);
+      // Merge
+      const merged = items.map(item => {
+        const post = itemPosts?.find(p => p.id === item.post_id);
+        return { ...item, post };
+      });
+      setViewingUserPortfolio(merged);
+    } else {
+      setViewingUserPortfolio(items);
+    }
+  };
+
+  // === EXPORT VISION BOARD ===
+  const exportVisionBoard = async () => {
+    if (visionItems.length === 0) { alert("Your vision board is empty!"); return; }
+    setExportingBoard(true);
+    try {
+      const canvas = document.createElement("canvas");
+      const cols = 2;
+      const cellSize = 300;
+      const gap = 12;
+      const rows = Math.ceil(visionItems.length / cols);
+      canvas.width = cols * cellSize + (cols + 1) * gap;
+      canvas.height = rows * cellSize + (rows + 1) * gap + 80;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#0A0A0A";
+      ctx.font = "700 24px Inter, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Vision Board — " + (user || "My Vision"), canvas.width / 2, 40);
+      ctx.font = "400 12px Inter, sans-serif";
+      ctx.fillStyle = "#6B7280";
+      ctx.fillText(new Date().toLocaleDateString(), canvas.width / 2, 62);
+
+      const drawItem = (item, x, y) => {
+        return new Promise((resolve) => {
+          if (item.item_type === "image" && item.image_url) {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => {
+              ctx.save();
+              ctx.beginPath();
+              ctx.roundRect(x, y, cellSize, cellSize, 12);
+              ctx.clip();
+              const ratio = Math.max(cellSize / img.width, cellSize / img.height);
+              const w = img.width * ratio, h = img.height * ratio;
+              ctx.drawImage(img, x + (cellSize - w) / 2, y + (cellSize - h) / 2, w, h);
+              ctx.restore();
+              resolve();
+            };
+            img.onerror = () => {
+              ctx.fillStyle = "#F3F4F6";
+              ctx.fillRect(x, y, cellSize, cellSize);
+              resolve();
+            };
+            img.src = item.image_url;
+          } else {
+            ctx.fillStyle = "#FEF3C7";
+            ctx.beginPath();
+            ctx.roundRect(x, y, cellSize, cellSize, 12);
+            ctx.fill();
+            ctx.fillStyle = "#0A0A0A";
+            ctx.font = "500 16px Inter, sans-serif";
+            ctx.textAlign = "left";
+            const text = item.content || "";
+            const words = text.split(" ");
+            let line = "", ty = y + 40;
+            const maxW = cellSize - 32;
+            for (const w of words) {
+              const test = line + w + " ";
+              if (ctx.measureText(test).width > maxW) {
+                ctx.fillText(line, x + 16, ty);
+                line = w + " ";
+                ty += 22;
+                if (ty > y + cellSize - 20) break;
+              } else {
+                line = test;
+              }
+            }
+            if (ty <= y + cellSize - 20) ctx.fillText(line, x + 16, ty);
+            resolve();
+          }
+        });
+      };
+
+      for (let i = 0; i < visionItems.length; i++) {
+        const col = i % cols, row = Math.floor(i / cols);
+        const x = gap + col * (cellSize + gap);
+        const y = 80 + gap + row * (cellSize + gap);
+        await drawItem(visionItems[i], x, y);
+      }
+
+      const link = document.createElement("a");
+      link.download = "vision-board-" + Date.now() + ".png";
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    } catch (e) {
+      alert("Export failed: " + e.message);
+    }
+    setExportingBoard(false);
   };
 
   // === Post image upload ===
@@ -1329,7 +1522,13 @@ export default function App() {
                     </button>
                   );
                 })}
-                <button onClick={() => openPostComments(p.id)} style={{ display: "flex", alignItems: "center", gap: 4, background: openComments === p.id ? "#F3F4F6" : "none", border: openComments === p.id ? "1px solid #D1D5DB" : "1px solid transparent", color: openComments === p.id ? C.textPrimary : C.textMuted, cursor: "pointer", fontSize: 12, fontFamily: "'Inter', sans-serif", padding: "5px 10px", borderRadius: 16, marginLeft: "auto" }}>
+                <button onClick={() => toggleBookmark(p.id)} style={{ display: "flex", alignItems: "center", background: bookmarkedIds.has(p.id) ? "#FEF3C7" : "none", border: bookmarkedIds.has(p.id) ? "1px solid #FDE68A" : "1px solid transparent", color: bookmarkedIds.has(p.id) ? "#92400E" : C.textMuted, cursor: "pointer", fontSize: 14, padding: "5px 8px", borderRadius: 16, marginLeft: "auto" }}>
+                  {bookmarkedIds.has(p.id) ? "🔖" : "📑"}
+                </button>
+                {p.user_id === authUser?.id && !portfolioItems.some(pi => pi.post_id === p.id) && (
+                  <button onClick={() => addToPortfolio(p.id)} title="Feature in portfolio" style={{ display: "flex", alignItems: "center", background: "none", border: "1px solid transparent", color: C.textMuted, cursor: "pointer", fontSize: 14, padding: "5px 8px", borderRadius: 16 }}>⭐</button>
+                )}
+                <button onClick={() => openPostComments(p.id)} style={{ display: "flex", alignItems: "center", gap: 4, background: openComments === p.id ? "#F3F4F6" : "none", border: openComments === p.id ? "1px solid #D1D5DB" : "1px solid transparent", color: openComments === p.id ? C.textPrimary : C.textMuted, cursor: "pointer", fontSize: 12, fontFamily: "'Inter', sans-serif", padding: "5px 10px", borderRadius: 16 }}>
                   💬 {commentCounts[p.id] > 0 ? commentCounts[p.id] : ""}
                 </button>
               </div>
@@ -1632,6 +1831,7 @@ export default function App() {
             <input type="file" accept="image/*" onChange={e => e.target.files[0] && addVisionImage(e.target.files[0])} style={{ display: "none" }} />
           </label>
           <button onClick={() => setShowVisionForm(!showVisionForm)} style={{ background: "#fff", color: "#0A0A0A", border: "1px solid #E5E7EB", padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>+ Note</button>
+          {visionItems.length > 0 && <button onClick={exportVisionBoard} disabled={exportingBoard} style={{ background: "#fff", color: "#0A0A0A", border: "1px solid #E5E7EB", padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>{exportingBoard ? "..." : "📥 Export"}</button>}
         </div>
       </div>
       {showVisionForm && (
@@ -1672,6 +1872,112 @@ export default function App() {
         <label style={{ display: "block", color: C.textSecondary, fontSize: 11, marginBottom: 6, fontFamily: "'Space Mono', monospace" }}>EMAIL</label>
         <div style={{ padding: "12px 16px", background: C.bgCard, borderRadius: 14, border: `1px solid ${C.border}`, color: C.textMuted, fontSize: 13, fontFamily: "'Space Mono', monospace", marginBottom: 24 }}>{authUser?.email || ""}</div>
         <Btn onClick={async () => { if (!authUser) return; await supabase.from("profiles").update({ name: editName, bio: editBio }).eq("id", authUser.id); setUser(editName); setProfilePage(null); }} full color={C.cyan}>Save Changes</Btn>
+      </div>
+    );
+    if (profilePage === "collections") return (
+      <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.5s" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button onClick={() => setProfilePage(null)} style={{ background: "none", border: "none", color: C.textPrimary, fontSize: 20, cursor: "pointer" }}>←</button>
+            <h2 style={{ fontFamily: "'Inter', sans-serif", color: C.textPrimary, fontSize: 20, fontWeight: 700, margin: 0 }}>Saved</h2>
+          </div>
+          <button onClick={() => setShowCollectionModal(true)} style={{ background: "#0A0A0A", color: "#fff", border: "none", padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>+ New</button>
+        </div>
+        {showCollectionModal && (
+          <Card style={{ padding: 14, marginBottom: 14 }}>
+            <input value={newCollection.name} onChange={e => setNewCollection({ ...newCollection, name: e.target.value })} placeholder="Collection name" style={{ width: "100%", padding: "10px 12px", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 8, fontSize: 13, fontFamily: "'Inter', sans-serif", outline: "none", boxSizing: "border-box", marginBottom: 8 }} />
+            <textarea value={newCollection.description} onChange={e => setNewCollection({ ...newCollection, description: e.target.value })} placeholder="Description (optional)" rows={2} style={{ width: "100%", padding: "10px 12px", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 8, fontSize: 13, fontFamily: "'Inter', sans-serif", outline: "none", boxSizing: "border-box", resize: "none", marginBottom: 8 }} />
+            <div style={{ display: "flex", gap: 8 }}>
+              <Btn onClick={createCollection} disabled={!newCollection.name.trim()} full>Create</Btn>
+              <button onClick={() => { setShowCollectionModal(false); setNewCollection({ name: "", description: "" }); }} style={{ background: "#F3F4F6", border: "none", padding: "10px 16px", borderRadius: 8, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>Cancel</button>
+            </div>
+          </Card>
+        )}
+        <h3 style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, fontWeight: 600, color: C.textMuted, marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>Collections</h3>
+        {collections.length === 0 && !showCollectionModal && <p style={{ color: C.textMuted, fontSize: 12, fontFamily: "'Inter', sans-serif", textAlign: "center", padding: 20 }}>No collections yet. Create one to organize your saved posts!</p>}
+        {collections.map(col => {
+          const bmCount = bookmarks.filter(b => b.collection_id === col.id).length;
+          return (
+            <Card key={col.id} onClick={() => openCollection(col)} style={{ display: "flex", alignItems: "center", gap: 12, padding: 14, marginBottom: 8 }}>
+              <div style={{ width: 42, height: 42, borderRadius: 10, background: "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>📚</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ color: C.textPrimary, fontSize: 14, fontWeight: 600, fontFamily: "'Inter', sans-serif" }}>{col.name}</div>
+                <div style={{ color: C.textMuted, fontSize: 11, fontFamily: "'Inter', sans-serif", marginTop: 2 }}>{bmCount} {bmCount === 1 ? "post" : "posts"}</div>
+              </div>
+              <button onClick={(e) => { e.stopPropagation(); deleteCollection(col.id); }} style={{ background: "none", border: "none", color: C.textMuted, fontSize: 16, cursor: "pointer" }}>×</button>
+            </Card>
+          );
+        })}
+        <h3 style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, fontWeight: 600, color: C.textMuted, margin: "20px 0 10px", textTransform: "uppercase", letterSpacing: "0.05em" }}>All Bookmarks ({bookmarks.length})</h3>
+        {bookmarks.length === 0 ? (
+          <p style={{ color: C.textMuted, fontSize: 12, fontFamily: "'Inter', sans-serif", textAlign: "center", padding: 20 }}>No bookmarks yet. Tap the 📑 icon on any post to save it!</p>
+        ) : (
+          bookmarks.map(bm => {
+            const post = posts.find(p => p.id === bm.post_id);
+            if (!post) return null;
+            return (
+              <Card key={bm.post_id} style={{ padding: 14, marginBottom: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                  <span style={{ color: C.textPrimary, fontSize: 12, fontWeight: 600, fontFamily: "'Inter', sans-serif" }}>{post.profiles?.name || "Anonymous"}</span>
+                </div>
+                {post.caption && <p style={{ color: C.textSecondary, fontSize: 12, fontFamily: "'Inter', sans-serif", lineHeight: 1.4, margin: "0 0 6px" }}>{post.caption}</p>}
+                {post.media_url && <img src={post.media_url} alt="" style={{ width: "100%", maxHeight: 200, objectFit: "cover", borderRadius: 6 }} />}
+              </Card>
+            );
+          })
+        )}
+      </div>
+    );
+    if (viewingCollection) return (
+      <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.5s" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+          <button onClick={() => { setViewingCollection(null); setViewingCollectionPosts([]); }} style={{ background: "none", border: "none", color: C.textPrimary, fontSize: 20, cursor: "pointer" }}>←</button>
+          <h2 style={{ fontFamily: "'Inter', sans-serif", color: C.textPrimary, fontSize: 20, fontWeight: 700, margin: 0 }}>{viewingCollection.name}</h2>
+        </div>
+        {viewingCollection.description && <p style={{ color: C.textSecondary, fontSize: 12, fontFamily: "'Inter', sans-serif", marginBottom: 16 }}>{viewingCollection.description}</p>}
+        {viewingCollectionPosts.length === 0 ? (
+          <p style={{ color: C.textMuted, fontSize: 12, fontFamily: "'Inter', sans-serif", textAlign: "center", padding: 20 }}>No posts in this collection yet.</p>
+        ) : (
+          viewingCollectionPosts.map(post => (
+            <Card key={post.id} style={{ padding: 14, marginBottom: 8 }}>
+              <div style={{ color: C.textPrimary, fontSize: 12, fontWeight: 600, fontFamily: "'Inter', sans-serif", marginBottom: 6 }}>{post.profiles?.name || "Anonymous"}</div>
+              {post.caption && <p style={{ color: C.textSecondary, fontSize: 12, fontFamily: "'Inter', sans-serif", lineHeight: 1.4, margin: "0 0 6px" }}>{post.caption}</p>}
+              {post.media_url && <img src={post.media_url} alt="" style={{ width: "100%", maxHeight: 200, objectFit: "cover", borderRadius: 6 }} />}
+            </Card>
+          ))
+        )}
+      </div>
+    );
+    if (profilePage === "portfolio") return (
+      <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.5s" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+          <button onClick={() => setProfilePage(null)} style={{ background: "none", border: "none", color: C.textPrimary, fontSize: 20, cursor: "pointer" }}>←</button>
+          <h2 style={{ fontFamily: "'Inter', sans-serif", color: C.textPrimary, fontSize: 20, fontWeight: 700, margin: 0 }}>Portfolio</h2>
+        </div>
+        <p style={{ color: C.textSecondary, fontSize: 12, fontFamily: "'Inter', sans-serif", marginBottom: 16 }}>Featured pieces shown on your public profile. Tap the ⭐ icon on your own posts to feature them.</p>
+        {portfolioItems.length === 0 ? (
+          <div style={{ textAlign: "center", padding: 40 }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🎨</div>
+            <p style={{ color: C.textMuted, fontSize: 13, fontFamily: "'Inter', sans-serif" }}>Your portfolio is empty</p>
+            <p style={{ color: C.textMuted, fontSize: 11, fontFamily: "'Inter', sans-serif", marginTop: 8 }}>Post creations and feature them here to build your showcase</p>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            {portfolioItems.map(item => {
+              const post = posts.find(p => p.id === item.post_id);
+              return (
+                <Card key={item.id} style={{ padding: 0, overflow: "hidden", position: "relative" }}>
+                  <button onClick={() => removeFromPortfolio(item.id)} style={{ position: "absolute", top: 6, right: 6, background: "rgba(0,0,0,0.6)", color: "#fff", border: "none", borderRadius: "50%", width: 22, height: 22, fontSize: 12, cursor: "pointer", zIndex: 2 }}>×</button>
+                  {post?.media_url ? (
+                    <img src={post.media_url} alt="" style={{ width: "100%", height: 140, objectFit: "cover", display: "block" }} />
+                  ) : (
+                    <div style={{ padding: 12, minHeight: 100, fontSize: 12, color: C.textPrimary, fontFamily: "'Inter', sans-serif", lineHeight: 1.5 }}>{post?.caption || item.title || "Featured"}</div>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
     );
     if (profilePage === "guidelines") return (
@@ -1783,6 +2089,11 @@ export default function App() {
             </Card>
           </>
         )}
+        <Card onClick={() => setProfilePage("collections")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", marginBottom: 8 }}>
+          <span style={{ fontSize: 16 }}>🔖</span>
+          <span style={{ color: C.textPrimary, fontSize: 12, fontFamily: "'Space Mono', monospace", flex: 1 }}>Saved Posts</span>
+          <span style={{ color: C.textMuted }}>→</span>
+        </Card>
         <Card onClick={() => setProfilePage("portfolio")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", marginBottom: 8 }}>
           <span style={{ fontSize: 16 }}>🎨</span>
           <span style={{ color: C.textPrimary, fontSize: 12, fontFamily: "'Space Mono', monospace", flex: 1 }}>Creator Portfolio</span>
@@ -1851,6 +2162,22 @@ export default function App() {
               <div style={{ color: C.textMuted, fontSize: 10, fontFamily: "'Inter', sans-serif", marginTop: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Following</div>
             </Card>
           </div>
+          {viewingUserPortfolio.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <h3 style={{ fontFamily: "'Inter', sans-serif", fontSize: 15, fontWeight: 600, color: C.textPrimary, margin: "0 0 12px" }}>Portfolio</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                {viewingUserPortfolio.map(item => (
+                  <Card key={item.id} style={{ padding: 0, overflow: "hidden" }}>
+                    {item.post?.media_url ? (
+                      <img src={item.post.media_url} alt="" style={{ width: "100%", height: 120, objectFit: "cover", display: "block" }} />
+                    ) : (
+                      <div style={{ padding: 10, minHeight: 80, fontSize: 11, color: C.textPrimary, fontFamily: "'Inter', sans-serif", lineHeight: 1.4 }}>{item.post?.caption || item.title || "Featured"}</div>
+                    )}
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
           <h3 style={{ fontFamily: "'Inter', sans-serif", fontSize: 15, fontWeight: 600, color: C.textPrimary, margin: "0 0 12px" }}>Posts</h3>
           {viewingUserPosts.length === 0 && <p style={{ color: C.textMuted, fontSize: 12, fontFamily: "'Inter', sans-serif", textAlign: "center", padding: 20 }}>No posts yet.</p>}
           {viewingUserPosts.map(p => (

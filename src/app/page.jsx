@@ -28,6 +28,20 @@ const C = {
   cream: "#F3F4F6",
 };
 
+const BADGES = {
+  first_post: { emoji: "🎨", name: "First Post", desc: "Shared your first creation" },
+  first_follower: { emoji: "👋", name: "First Follower", desc: "Someone believes in you" },
+  streak_7: { emoji: "🔥", name: "Week Warrior", desc: "7-day streak" },
+  streak_30: { emoji: "⚡", name: "Consistency King", desc: "30-day streak" },
+  ten_ideas: { emoji: "💡", name: "Idea Machine", desc: "Captured 10 ideas" },
+  first_goal: { emoji: "🎯", name: "Goal Setter", desc: "Set your first goal" },
+  goal_crusher: { emoji: "🏆", name: "Goal Crusher", desc: "Completed a goal" },
+  social_butterfly: { emoji: "🦋", name: "Social Butterfly", desc: "Followed 5 people" },
+  reflection_master: { emoji: "📖", name: "Reflection Master", desc: "10 reflections" },
+  vision_maker: { emoji: "✨", name: "Vision Maker", desc: "10 vision board items" },
+};
+
+
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
@@ -571,6 +585,14 @@ export default function App() {
   const [followerCounts, setFollowerCounts] = useState({});
   const [myFollowerCount, setMyFollowerCount] = useState(0);
   const [myFollowingCount, setMyFollowingCount] = useState(0);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [myBadges, setMyBadges] = useState([]);
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [longestStreak, setLongestStreak] = useState(0);
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [leaderboardMetric, setLeaderboardMetric] = useState("posts");
   const [user, setUser] = useState("");
   const [authUser, setAuthUser] = useState(null);
   const [ideas, setIdeas] = useState([]);
@@ -665,6 +687,17 @@ export default function App() {
       .then(({ count }) => { setMyFollowerCount(count || 0); });
     supabase.from("followers").select("*", { count: "exact", head: true }).eq("follower_id", uid)
       .then(({ count }) => { setMyFollowingCount(count || 0); });
+    supabase.from("notifications").select("*, actor:actor_id(name)").eq("user_id", uid).order("created_at", { ascending: false }).limit(50)
+      .then(({ data }) => {
+        if (data) {
+          setNotifications(data);
+          setUnreadCount(data.filter(n => !n.is_read).length);
+        }
+      });
+    supabase.from("user_badges").select("badge_key").eq("user_id", uid)
+      .then(({ data }) => { if (data) setMyBadges(data.map(b => b.badge_key)); });
+    supabase.from("profiles").select("current_streak, longest_streak").eq("id", uid).single()
+      .then(({ data }) => { if (data) { setCurrentStreak(data.current_streak || 0); setLongestStreak(data.longest_streak || 0); } });
     // Load reaction counts for all posts
     supabase.from("reactions").select("post_id, reaction_type")
       .then(({ data }) => {
@@ -878,6 +911,110 @@ export default function App() {
     setCommentCounts(prev => ({ ...prev, [postId]: Math.max(0, (prev[postId] || 1) - 1) }));
   };
 
+  // === BADGES ===
+  const awardBadge = async (badgeKey) => {
+    if (!authUser || myBadges.includes(badgeKey)) return;
+    const { error } = await supabase.from("user_badges").insert({ user_id: authUser.id, badge_key: badgeKey });
+    if (!error) {
+      setMyBadges(prev => [...prev, badgeKey]);
+      await supabase.from("notifications").insert({ user_id: authUser.id, type: "badge", message: "Earned: " + (BADGES[badgeKey]?.name || badgeKey) });
+    }
+  };
+
+  const checkBadges = async () => {
+    if (!authUser) return;
+    if (posts.filter(p => p.user_id === authUser.id).length >= 1 && !myBadges.includes("first_post")) await awardBadge("first_post");
+    if (myFollowerCount >= 1 && !myBadges.includes("first_follower")) await awardBadge("first_follower");
+    if (currentStreak >= 7 && !myBadges.includes("streak_7")) await awardBadge("streak_7");
+    if (currentStreak >= 30 && !myBadges.includes("streak_30")) await awardBadge("streak_30");
+    if (ideas.length >= 10 && !myBadges.includes("ten_ideas")) await awardBadge("ten_ideas");
+    if (goals.length >= 1 && !myBadges.includes("first_goal")) await awardBadge("first_goal");
+    if (goals.filter(g => g.status === "completed").length >= 1 && !myBadges.includes("goal_crusher")) await awardBadge("goal_crusher");
+    if (myFollowingCount >= 5 && !myBadges.includes("social_butterfly")) await awardBadge("social_butterfly");
+    if (refs.length >= 10 && !myBadges.includes("reflection_master")) await awardBadge("reflection_master");
+    if (visionItems.length >= 10 && !myBadges.includes("vision_maker")) await awardBadge("vision_maker");
+  };
+
+  // === STREAKS ===
+  const updateStreak = async () => {
+    if (!authUser) return;
+    const today = new Date().toISOString().split("T")[0];
+    const { data: profile } = await supabase.from("profiles").select("last_active_date, current_streak, longest_streak").eq("id", authUser.id).single();
+    if (!profile) return;
+    const lastDate = profile.last_active_date;
+    let newStreak = profile.current_streak || 0;
+    if (!lastDate) {
+      newStreak = 1;
+    } else {
+      const last = new Date(lastDate);
+      const todayD = new Date(today);
+      const diffDays = Math.floor((todayD - last) / (1000 * 60 * 60 * 24));
+      if (diffDays === 0) return;
+      if (diffDays === 1) newStreak += 1;
+      else newStreak = 1;
+    }
+    const newLongest = Math.max(profile.longest_streak || 0, newStreak);
+    await supabase.from("profiles").update({ current_streak: newStreak, longest_streak: newLongest, last_active_date: today }).eq("id", authUser.id);
+    setCurrentStreak(newStreak);
+    setLongestStreak(newLongest);
+  };
+
+  // === NOTIFICATIONS ===
+  const markAllRead = async () => {
+    if (!authUser) return;
+    await supabase.from("notifications").update({ is_read: true }).eq("user_id", authUser.id).eq("is_read", false);
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    setUnreadCount(0);
+  };
+
+  const openNotifications = async () => {
+    setShowNotifications(true);
+    if (!authUser) return;
+    const { data } = await supabase.from("notifications").select("*, actor:actor_id(name)").eq("user_id", authUser.id).order("created_at", { ascending: false }).limit(50);
+    if (data) {
+      setNotifications(data);
+      setUnreadCount(data.filter(n => !n.is_read).length);
+    }
+    setTimeout(() => markAllRead(), 1000);
+  };
+
+  // === LEADERBOARD ===
+  const loadLeaderboard = async (metric) => {
+    setLeaderboardMetric(metric);
+    if (metric === "posts") {
+      const { data } = await supabase.from("posts").select("user_id, profiles(name)");
+      if (data) {
+        const counts = {};
+        data.forEach(p => {
+          if (!counts[p.user_id]) counts[p.user_id] = { user_id: p.user_id, name: p.profiles?.name || "Anonymous", count: 0 };
+          counts[p.user_id].count++;
+        });
+        setLeaderboard(Object.values(counts).sort((a, b) => b.count - a.count).slice(0, 10));
+      }
+    } else if (metric === "followers") {
+      const { data } = await supabase.from("followers").select("following_id, following:following_id(name)");
+      if (data) {
+        const counts = {};
+        data.forEach(f => {
+          if (!counts[f.following_id]) counts[f.following_id] = { user_id: f.following_id, name: f.following?.name || "Anonymous", count: 0 };
+          counts[f.following_id].count++;
+        });
+        setLeaderboard(Object.values(counts).sort((a, b) => b.count - a.count).slice(0, 10));
+      }
+    } else if (metric === "streak") {
+      const { data } = await supabase.from("profiles").select("id, name, current_streak").order("current_streak", { ascending: false }).limit(10);
+      if (data) setLeaderboard(data.map(p => ({ user_id: p.id, name: p.name || "Anonymous", count: p.current_streak || 0 })));
+    }
+  };
+
+  useEffect(() => {
+    if (authUser) {
+      updateStreak();
+      checkBadges();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUser, posts.length, ideas.length, goals.length, refs.length, visionItems.length, myFollowerCount, myFollowingCount, currentStreak]);
+
   // === Post image upload ===
   const uploadPostImage = async (file) => {
     if (!file || !authUser) return null;
@@ -916,6 +1053,23 @@ export default function App() {
 
   const renderHome = () => (
     <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.5s" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {currentStreak > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4, background: "#FEF3C7", padding: "5px 10px", borderRadius: 16, border: "1px solid #FDE68A" }}>
+              <span style={{ fontSize: 14 }}>🔥</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "#92400E", fontFamily: "'Inter', sans-serif" }}>{currentStreak}</span>
+            </div>
+          )}
+        </div>
+        <button onClick={openNotifications} style={{ background: "none", border: "none", cursor: "pointer", position: "relative", padding: 8 }}>
+          <span style={{ fontSize: 22 }}>🔔</span>
+          {unreadCount > 0 && (
+            <span style={{ position: "absolute", top: 2, right: 2, background: "#DC2626", color: "#fff", fontSize: 9, fontWeight: 700, minWidth: 16, height: 16, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", fontFamily: "'Inter', sans-serif" }}>{unreadCount}</span>
+          )}
+        </button>
+      </div>
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
         <div>
           <p style={{ color: C.textMuted, fontSize: 10, fontFamily: "'Space Mono', monospace", margin: 0, letterSpacing: "0.15em", textTransform: "uppercase" }}>Welcome back</p>
@@ -1175,6 +1329,51 @@ export default function App() {
     </div>
   );
 
+  // ============ LEADERBOARD ============
+  const renderLeaderboard = () => {
+    if (leaderboard.length === 0) {
+      // Auto-load on first view
+      loadLeaderboard(leaderboardMetric);
+    }
+    return (
+      <div style={{ animation: "warpIn 0.4s" }}>
+        <div style={{ display: "flex", gap: 4, marginBottom: 16, background: "#F3F4F6", padding: 4, borderRadius: 10 }}>
+          {[
+            { id: "posts", label: "Posts" },
+            { id: "followers", label: "Followers" },
+            { id: "streak", label: "Streak" },
+          ].map(m => (
+            <button key={m.id} onClick={() => loadLeaderboard(m.id)} style={{
+              flex: 1, padding: "8px 12px", borderRadius: 7, border: "none",
+              background: leaderboardMetric === m.id ? "#FFFFFF" : "transparent",
+              color: leaderboardMetric === m.id ? C.textPrimary : C.textSecondary,
+              fontSize: 13, fontWeight: 500, fontFamily: "'Inter', sans-serif",
+              cursor: "pointer",
+              boxShadow: leaderboardMetric === m.id ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
+            }}>{m.label}</button>
+          ))}
+        </div>
+        {leaderboard.length === 0 ? (
+          <p style={{ color: C.textMuted, fontSize: 13, fontFamily: "'Inter', sans-serif", textAlign: "center", padding: "20px 0" }}>Loading...</p>
+        ) : (
+          leaderboard.map((entry, i) => {
+            const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : null;
+            return (
+              <Card key={entry.user_id} onClick={() => openUserProfile(entry.user_id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: 14, marginBottom: 8 }}>
+                <div style={{ width: 32, textAlign: "center", fontSize: medal ? 20 : 13, color: C.textPrimary, fontWeight: 700, fontFamily: "'Inter', sans-serif" }}>{medal || ("#" + (i + 1))}</div>
+                <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: C.textPrimary, fontWeight: 600, fontFamily: "'Inter', sans-serif" }}>{entry.name[0]?.toUpperCase()}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ color: C.textPrimary, fontSize: 13, fontWeight: 600, fontFamily: "'Inter', sans-serif" }}>{entry.name}</div>
+                  <div style={{ color: C.textMuted, fontSize: 11, fontFamily: "'Inter', sans-serif" }}>{entry.count} {leaderboardMetric === "streak" ? "day streak" : leaderboardMetric}</div>
+                </div>
+              </Card>
+            );
+          })
+        )}
+      </div>
+    );
+  };
+
   // ============ COMMUNITY (Feed + Circles) ============
   const renderCommunity = () => (
     <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.5s" }}>
@@ -1183,6 +1382,7 @@ export default function App() {
         {[
           { id: "feed", label: "Feed" },
           { id: "circles", label: "Circles" },
+          { id: "leaderboard", label: "Top" },
         ].map(t => (
           <button key={t.id} onClick={() => setCommTab(t.id)} style={{
             flex: 1, padding: "8px 12px", borderRadius: 7, border: "none",
@@ -1196,6 +1396,7 @@ export default function App() {
       </div>
       {commTab === "feed" && renderFeed()}
       {commTab === "circles" && renderCircles()}
+      {commTab === "leaderboard" && renderLeaderboard()}
     </div>
   );
 
@@ -1424,6 +1625,21 @@ export default function App() {
             </Card>
           ))}
         </div>
+        {myBadges.length > 0 && (
+          <>
+            <h3 style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 600, color: C.textPrimary, margin: "0 0 10px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Badges</h3>
+            <Card style={{ padding: 16, marginBottom: 16 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                {myBadges.map(k => (
+                  <div key={k} title={BADGES[k]?.desc || ""} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, minWidth: 60 }}>
+                    <div style={{ fontSize: 28 }}>{BADGES[k]?.emoji || "🏅"}</div>
+                    <div style={{ fontSize: 9, color: C.textMuted, fontFamily: "'Inter', sans-serif", textAlign: "center", lineHeight: 1.2 }}>{BADGES[k]?.name || k}</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </>
+        )}
         <Card onClick={() => setProfilePage("portfolio")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", marginBottom: 8 }}>
           <span style={{ fontSize: 16 }}>🎨</span>
           <span style={{ color: C.textPrimary, fontSize: 12, fontFamily: "'Space Mono', monospace", flex: 1 }}>Creator Portfolio</span>
@@ -1508,6 +1724,47 @@ export default function App() {
     );
   };
 
+  // === Notifications overlay ===
+  const renderNotifications = () => {
+    if (!showNotifications) return null;
+    return (
+      <div style={{ position: "fixed", inset: 0, background: "#FFFFFF", zIndex: 200, overflowY: "auto", maxWidth: 480, margin: "0 auto" }}>
+        <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.3s" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <button onClick={() => setShowNotifications(false)} style={{ background: "none", border: "none", color: C.textPrimary, fontSize: 20, cursor: "pointer" }}>←</button>
+              <h2 style={{ fontFamily: "'Inter', sans-serif", color: C.textPrimary, fontSize: 20, fontWeight: 700, margin: 0 }}>Notifications</h2>
+            </div>
+            {notifications.length > 0 && <button onClick={markAllRead} style={{ background: "none", border: "none", color: C.textSecondary, fontSize: 12, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>Mark all read</button>}
+          </div>
+          {notifications.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 40 }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>🔕</div>
+              <p style={{ color: C.textMuted, fontSize: 13, fontFamily: "'Inter', sans-serif" }}>No notifications yet</p>
+            </div>
+          ) : (
+            notifications.map(n => {
+              const emoji = n.type === "follow" ? "👋" : n.type === "comment" ? "💬" : n.type === "reaction" ? "✨" : n.type === "badge" ? "🏆" : "🔔";
+              return (
+                <Card key={n.id} onClick={() => { if (n.actor_id) { setShowNotifications(false); openUserProfile(n.actor_id); } }} style={{ padding: 14, marginBottom: 8, borderLeft: n.is_read ? "3px solid transparent" : "3px solid #0A0A0A" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ fontSize: 20 }}>{emoji}</div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ color: C.textPrimary, fontSize: 13, fontFamily: "'Inter', sans-serif", margin: 0, lineHeight: 1.4 }}>
+                        {n.actor?.name && <span style={{ fontWeight: 600 }}>{n.actor.name}</span>} {n.message}
+                      </p>
+                      <p style={{ color: C.textMuted, fontSize: 11, fontFamily: "'Inter', sans-serif", margin: "3px 0 0" }}>{new Date(n.created_at).toLocaleString()}</p>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const tabs = { home: renderHome, workspace: renderWorkspace, community: renderCommunity, profile: renderProfile };
 
   return (
@@ -1515,6 +1772,7 @@ export default function App() {
       <TripBg />
       <div style={{ position: "relative", zIndex: 1 }}>{tabs[tab]?.() || renderHome()}</div>
       {viewingProfile && renderUserProfile()}
+      {renderNotifications()}
       <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "#FFFFFF", backdropFilter: "blur(24px)", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-around", padding: "10px 4px", paddingBottom: "max(10px, env(safe-area-inset-bottom))", zIndex: 50 }}>
         <NTab icon={Icons.Home} label="Home" id="home" />
         <NTab icon={Icons.Bulb} label="Workspace" id="workspace" />

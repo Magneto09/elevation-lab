@@ -593,6 +593,15 @@ export default function App() {
   const [longestStreak, setLongestStreak] = useState(0);
   const [leaderboard, setLeaderboard] = useState([]);
   const [leaderboardMetric, setLeaderboardMetric] = useState("posts");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [showSearch, setShowSearch] = useState(false);
+  const [feedSort, setFeedSort] = useState("recent");
+  const [trendingHashtags, setTrendingHashtags] = useState([]);
+  const [suggestedUsers, setSuggestedUsers] = useState([]);
+  const [viewingHashtag, setViewingHashtag] = useState(null);
+  const [hashtagPosts, setHashtagPosts] = useState([]);
+  const [postHashtags, setPostHashtags] = useState({}); // { post_id: [tags] }
   const [user, setUser] = useState("");
   const [authUser, setAuthUser] = useState(null);
   const [ideas, setIdeas] = useState([]);
@@ -698,6 +707,24 @@ export default function App() {
       .then(({ data }) => { if (data) setMyBadges(data.map(b => b.badge_key)); });
     supabase.from("profiles").select("current_streak, longest_streak").eq("id", uid).single()
       .then(({ data }) => { if (data) { setCurrentStreak(data.current_streak || 0); setLongestStreak(data.longest_streak || 0); } });
+    // trending_hashtags_loaded
+    supabase.from("hashtags").select("*").order("post_count", { ascending: false }).limit(15)
+      .then(({ data }) => { if (data) setTrendingHashtags(data); });
+    // Suggested users (users you don't follow yet, most followers)
+    supabase.from("profiles").select("id, name, bio").neq("id", uid).limit(20)
+      .then(({ data }) => { if (data) setSuggestedUsers(data); });
+    // Load post -> hashtags map
+    supabase.from("post_hashtags").select("post_id, hashtags(tag)")
+      .then(({ data }) => {
+        if (data) {
+          const map = {};
+          data.forEach(ph => {
+            if (!map[ph.post_id]) map[ph.post_id] = [];
+            if (ph.hashtags?.tag) map[ph.post_id].push(ph.hashtags.tag);
+          });
+          setPostHashtags(map);
+        }
+      });
     // Load reaction counts for all posts
     supabase.from("reactions").select("post_id, reaction_type")
       .then(({ data }) => {
@@ -759,7 +786,10 @@ export default function App() {
     const { data } = await supabase.from("posts").insert({
       user_id: authUser.id, caption: newPost, post_type: imageUrl ? "image" : "thought", media_url: imageUrl
     }).select("*, profiles(name)").single();
-    if (data) setPosts([data, ...posts]);
+    if (data) {
+      setPosts([data, ...posts]);
+      if (newPost.trim()) await saveHashtagsForPost(data.id, newPost);
+    }
     setNewPost(""); setSelectedImage(null);
   };
   // Join/leave circle
@@ -1015,6 +1045,65 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authUser, posts.length, ideas.length, goals.length, refs.length, visionItems.length, myFollowerCount, myFollowingCount, currentStreak]);
 
+  // === SEARCH ===
+  const searchUsers = async (query) => {
+    if (!query.trim()) { setSearchResults([]); return; }
+    const { data } = await supabase.from("profiles").select("id, name, bio").ilike("name", `%${query}%`).limit(20);
+    if (data) setSearchResults(data);
+  };
+
+  // === HASHTAGS ===
+  const parseHashtags = (text) => {
+    const matches = text.match(/#([a-zA-Z0-9_]+)/g);
+    return matches ? [...new Set(matches.map(t => t.slice(1).toLowerCase()))] : [];
+  };
+
+  const saveHashtagsForPost = async (postId, caption) => {
+    const tags = parseHashtags(caption);
+    if (tags.length === 0) return;
+    for (const tag of tags) {
+      // Upsert hashtag
+      let { data: existing } = await supabase.from("hashtags").select("id").eq("tag", tag).single();
+      let tagId = existing?.id;
+      if (!tagId) {
+        const { data: newTag } = await supabase.from("hashtags").insert({ tag }).select("id").single();
+        tagId = newTag?.id;
+      }
+      if (tagId) {
+        await supabase.from("post_hashtags").insert({ post_id: postId, hashtag_id: tagId });
+      }
+    }
+    // Refresh local map
+    setPostHashtags(prev => ({ ...prev, [postId]: tags }));
+  };
+
+  const openHashtag = async (tag) => {
+    setViewingHashtag(tag);
+    const cleanTag = tag.replace("#", "").toLowerCase();
+    const { data: tagData } = await supabase.from("hashtags").select("id").eq("tag", cleanTag).single();
+    if (!tagData) { setHashtagPosts([]); return; }
+    const { data: phs } = await supabase.from("post_hashtags").select("post_id").eq("hashtag_id", tagData.id);
+    if (!phs || phs.length === 0) { setHashtagPosts([]); return; }
+    const postIds = phs.map(ph => ph.post_id);
+    const { data: hposts } = await supabase.from("posts").select("*, profiles(name)").in("id", postIds).order("created_at", { ascending: false });
+    if (hposts) setHashtagPosts(hposts);
+  };
+
+  // === TRENDING FEED ===
+  const loadTrendingFeed = async () => {
+    // Get posts sorted by reaction count in last 7 days
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: recentPosts } = await supabase.from("posts").select("*, profiles(name)").gte("created_at", weekAgo).order("created_at", { ascending: false }).limit(50);
+    if (!recentPosts) return;
+    // Get reaction counts for these posts
+    const { data: rxns } = await supabase.from("reactions").select("post_id").in("post_id", recentPosts.map(p => p.id));
+    const rxCounts = {};
+    (rxns || []).forEach(r => { rxCounts[r.post_id] = (rxCounts[r.post_id] || 0) + 1; });
+    // Sort by reactions desc
+    const sorted = recentPosts.sort((a, b) => (rxCounts[b.id] || 0) - (rxCounts[a.id] || 0));
+    setPosts(sorted);
+  };
+
   // === Post image upload ===
   const uploadPostImage = async (file) => {
     if (!file || !authUser) return null;
@@ -1062,6 +1151,9 @@ export default function App() {
             </div>
           )}
         </div>
+        <button onClick={() => setShowSearch(true)} style={{ background: "none", border: "none", cursor: "pointer", padding: 8, marginRight: 4 }}>
+          <span style={{ fontSize: 20 }}>🔍</span>
+        </button>
         <button onClick={openNotifications} style={{ background: "none", border: "none", cursor: "pointer", position: "relative", padding: 8 }}>
           <span style={{ fontSize: 22 }}>🔔</span>
           {unreadCount > 0 && (
@@ -1168,7 +1260,18 @@ export default function App() {
 
   const renderFeed = () => (
     <div style={{ padding: "0 0 0", animation: "warpIn 0.5s" }}>
-      <h2 className="title-rainbow" style={{ fontFamily: "'Syne', sans-serif", fontSize: 24, fontWeight: 800, marginBottom: 20 }}>Creative Feed</h2>
+      <h2 style={{ fontFamily: "'Inter', sans-serif", fontSize: 22, fontWeight: 700, marginBottom: 12, color: "#0A0A0A" }}>Creative Feed</h2>
+      <div style={{ display: "flex", gap: 4, marginBottom: 16, background: "#F3F4F6", padding: 4, borderRadius: 10 }}>
+        {[{ id: "recent", label: "Recent" }, { id: "trending", label: "Trending" }].map(m => (
+          <button key={m.id} onClick={() => { setFeedSort(m.id); if (m.id === "trending") loadTrendingFeed(); else { supabase.from("posts").select("*, profiles(name)").order("created_at", { ascending: false }).limit(20).then(({ data }) => { if (data) setPosts(data); }); } }} style={{
+            flex: 1, padding: "8px 12px", borderRadius: 7, border: "none",
+            background: feedSort === m.id ? "#FFFFFF" : "transparent",
+            color: feedSort === m.id ? "#0A0A0A" : "#4B5563",
+            fontSize: 13, fontWeight: 500, fontFamily: "'Inter', sans-serif", cursor: "pointer",
+            boxShadow: feedSort === m.id ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
+          }}>{m.label}</button>
+        ))}
+      </div>
       {/* Create a post */}
       <Card intense style={{ padding: 16, marginBottom: 20 }}>
         <textarea value={newPost} onChange={e => setNewPost(e.target.value)} placeholder="Share something with the community..." rows={3} style={{ width: "100%", padding: 0, background: "transparent", border: "none", color: C.textPrimary, fontSize: 13, fontFamily: "'Inter', sans-serif", resize: "none", outline: "none", boxSizing: "border-box", lineHeight: 1.6 }} />
@@ -1206,6 +1309,15 @@ export default function App() {
               </div>
               {p.caption && <p style={{ color: C.textSecondary, fontSize: 13, fontFamily: "'Inter', sans-serif", lineHeight: 1.6, margin: "0 0 12px" }}>{p.caption}</p>}
               {p.media_url && <img src={p.media_url} alt="" style={{ width: "100%", maxHeight: 360, objectFit: "cover", borderRadius: 8, display: "block", marginBottom: 12 }} />}
+              {postHashtags[p.id] && postHashtags[p.id].length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+                  {postHashtags[p.id].map(tag => (
+                    <button key={tag} onClick={() => openHashtag(tag)} style={{ background: "#F3F4F6", border: "none", borderRadius: 12, padding: "3px 10px", fontSize: 11, color: "#4B5563", fontFamily: "'Inter', sans-serif", cursor: "pointer" }}>
+                      #{tag}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 {[{e:"🙏",t:"appreciation"},{e:"✨",t:"inspiration"},{e:"🤔",t:"curiosity"}].map(r => {
                   const active = myReactions[p.id]?.[r.t];
@@ -1329,6 +1441,35 @@ export default function App() {
     </div>
   );
 
+  // ============ EXPLORE ============
+  const renderExplore = () => (
+    <div style={{ animation: "warpIn 0.4s" }}>
+      <h3 style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 600, color: C.textMuted, marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>Trending Hashtags</h3>
+      {trendingHashtags.length === 0 ? (
+        <p style={{ color: C.textMuted, fontSize: 12, fontFamily: "'Inter', sans-serif", textAlign: "center", padding: "12px 0" }}>No hashtags yet — add some to your posts!</p>
+      ) : (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 24 }}>
+          {trendingHashtags.slice(0, 12).map(h => (
+            <button key={h.id} onClick={() => openHashtag(h.tag)} style={{ background: "#F3F4F6", border: "1px solid #E5E7EB", borderRadius: 16, padding: "8px 14px", fontSize: 13, color: C.textPrimary, fontFamily: "'Inter', sans-serif", cursor: "pointer" }}>
+              #{h.tag} <span style={{ color: C.textMuted, fontSize: 11, marginLeft: 4 }}>{h.post_count}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      <h3 style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 600, color: C.textMuted, marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>Suggested Creators</h3>
+      {suggestedUsers.filter(u => !myFollowingIds.includes(u.id)).slice(0, 10).map(u => (
+        <Card key={u.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: 12, marginBottom: 8 }}>
+          <div onClick={() => openUserProfile(u.id)} style={{ width: 42, height: 42, borderRadius: "50%", background: "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: C.textPrimary, fontWeight: 600, cursor: "pointer" }}>{u.name?.[0]?.toUpperCase() || "?"}</div>
+          <div style={{ flex: 1 }} onClick={() => openUserProfile(u.id)}>
+            <div style={{ color: C.textPrimary, fontSize: 14, fontWeight: 600, fontFamily: "'Inter', sans-serif", cursor: "pointer" }}>{u.name || "Anonymous"}</div>
+            {u.bio && <div style={{ color: C.textMuted, fontSize: 11, fontFamily: "'Inter', sans-serif", marginTop: 2, cursor: "pointer" }}>{u.bio}</div>}
+          </div>
+          <button onClick={() => toggleFollow(u.id)} style={{ background: "#0A0A0A", color: "#fff", border: "none", padding: "6px 16px", borderRadius: 16, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>Follow</button>
+        </Card>
+      ))}
+    </div>
+  );
+
   // ============ LEADERBOARD ============
   const renderLeaderboard = () => {
     if (leaderboard.length === 0) {
@@ -1381,6 +1522,7 @@ export default function App() {
       <div style={{ display: "flex", gap: 4, marginBottom: 20, background: "#F3F4F6", padding: 4, borderRadius: 10 }}>
         {[
           { id: "feed", label: "Feed" },
+          { id: "explore", label: "Explore" },
           { id: "circles", label: "Circles" },
           { id: "leaderboard", label: "Top" },
         ].map(t => (
@@ -1395,6 +1537,7 @@ export default function App() {
         ))}
       </div>
       {commTab === "feed" && renderFeed()}
+      {commTab === "explore" && renderExplore()}
       {commTab === "circles" && renderCircles()}
       {commTab === "leaderboard" && renderLeaderboard()}
     </div>
@@ -1765,6 +1908,78 @@ export default function App() {
     );
   };
 
+  // === Search overlay ===
+  const renderSearch = () => {
+    if (!showSearch) return null;
+    return (
+      <div style={{ position: "fixed", inset: 0, background: "#FFFFFF", zIndex: 150, overflowY: "auto", maxWidth: 480, margin: "0 auto" }}>
+        <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.3s" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+            <button onClick={() => { setShowSearch(false); setSearchQuery(""); setSearchResults([]); }} style={{ background: "none", border: "none", color: C.textPrimary, fontSize: 20, cursor: "pointer" }}>←</button>
+            <input autoFocus value={searchQuery} onChange={e => { setSearchQuery(e.target.value); searchUsers(e.target.value); }} placeholder="Search users..." style={{ flex: 1, padding: "10px 14px", background: "#F3F4F6", border: "none", borderRadius: 10, color: C.textPrimary, fontSize: 14, fontFamily: "'Inter', sans-serif", outline: "none" }} />
+          </div>
+          {searchQuery.length === 0 ? (
+            <div>
+              <h3 style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, fontWeight: 600, color: C.textMuted, marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>Trending Hashtags</h3>
+              {trendingHashtags.length === 0 ? (
+                <p style={{ color: C.textMuted, fontSize: 12, fontFamily: "'Inter', sans-serif", textAlign: "center", padding: 20 }}>No hashtags yet</p>
+              ) : (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
+                  {trendingHashtags.map(h => (
+                    <button key={h.id} onClick={() => { setShowSearch(false); openHashtag(h.tag); }} style={{ background: "#F3F4F6", border: "1px solid #E5E7EB", borderRadius: 16, padding: "8px 14px", fontSize: 13, color: C.textPrimary, fontFamily: "'Inter', sans-serif", cursor: "pointer" }}>
+                      #{h.tag} <span style={{ color: C.textMuted, fontSize: 11, marginLeft: 4 }}>{h.post_count}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : searchResults.length === 0 ? (
+            <p style={{ color: C.textMuted, fontSize: 13, fontFamily: "'Inter', sans-serif", textAlign: "center", padding: 20 }}>No users found</p>
+          ) : (
+            searchResults.map(u => (
+              <Card key={u.id} onClick={() => { setShowSearch(false); openUserProfile(u.id); }} style={{ display: "flex", alignItems: "center", gap: 12, padding: 12, marginBottom: 8 }}>
+                <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: C.textPrimary, fontWeight: 600, fontFamily: "'Inter', sans-serif" }}>{u.name?.[0]?.toUpperCase() || "?"}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ color: C.textPrimary, fontSize: 14, fontWeight: 600, fontFamily: "'Inter', sans-serif" }}>{u.name || "Anonymous"}</div>
+                  {u.bio && <div style={{ color: C.textMuted, fontSize: 11, fontFamily: "'Inter', sans-serif", marginTop: 2 }}>{u.bio}</div>}
+                </div>
+              </Card>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // === Hashtag view overlay ===
+  const renderHashtagView = () => {
+    if (!viewingHashtag) return null;
+    return (
+      <div style={{ position: "fixed", inset: 0, background: "#FFFFFF", zIndex: 150, overflowY: "auto", maxWidth: 480, margin: "0 auto" }}>
+        <div style={{ padding: "20px 16px 110px", animation: "warpIn 0.3s" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+            <button onClick={() => { setViewingHashtag(null); setHashtagPosts([]); }} style={{ background: "none", border: "none", color: C.textPrimary, fontSize: 20, cursor: "pointer" }}>←</button>
+            <h2 style={{ fontFamily: "'Inter', sans-serif", color: C.textPrimary, fontSize: 20, fontWeight: 700, margin: 0 }}>#{viewingHashtag.replace("#", "")}</h2>
+          </div>
+          {hashtagPosts.length === 0 ? (
+            <p style={{ color: C.textMuted, fontSize: 13, fontFamily: "'Inter', sans-serif", textAlign: "center", padding: 20 }}>No posts with this hashtag</p>
+          ) : (
+            hashtagPosts.map(p => (
+              <Card key={p.id} style={{ marginBottom: 12, padding: 14 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                  <div onClick={() => { setViewingHashtag(null); openUserProfile(p.user_id); }} style={{ width: 30, height: 30, borderRadius: "50%", background: "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: C.textPrimary, fontWeight: 600, cursor: "pointer" }}>{p.profiles?.name?.[0]?.toUpperCase() || "?"}</div>
+                  <span onClick={() => { setViewingHashtag(null); openUserProfile(p.user_id); }} style={{ color: C.textPrimary, fontSize: 13, fontWeight: 600, fontFamily: "'Inter', sans-serif", cursor: "pointer" }}>{p.profiles?.name || "Anonymous"}</span>
+                </div>
+                {p.caption && <p style={{ color: C.textPrimary, fontSize: 13, fontFamily: "'Inter', sans-serif", lineHeight: 1.5, margin: "0 0 8px" }}>{p.caption}</p>}
+                {p.media_url && <img src={p.media_url} alt="" style={{ width: "100%", maxHeight: 300, objectFit: "cover", borderRadius: 8 }} />}
+              </Card>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const tabs = { home: renderHome, workspace: renderWorkspace, community: renderCommunity, profile: renderProfile };
 
   return (
@@ -1773,6 +1988,8 @@ export default function App() {
       <div style={{ position: "relative", zIndex: 1 }}>{tabs[tab]?.() || renderHome()}</div>
       {viewingProfile && renderUserProfile()}
       {renderNotifications()}
+      {renderSearch()}
+      {renderHashtagView()}
       <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "#FFFFFF", backdropFilter: "blur(24px)", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-around", padding: "10px 4px", paddingBottom: "max(10px, env(safe-area-inset-bottom))", zIndex: 50 }}>
         <NTab icon={Icons.Home} label="Home" id="home" />
         <NTab icon={Icons.Bulb} label="Workspace" id="workspace" />

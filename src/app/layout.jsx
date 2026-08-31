@@ -5,7 +5,7 @@ export const metadata = {
 };
 
 export const viewport = {
-  themeColor: '#FFFFFF',
+  themeColor: '#1E3A2F',
 };
 
 export default function RootLayout({ children }) {
@@ -14,7 +14,7 @@ export default function RootLayout({ children }) {
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
       </head>
-      <body style={{ margin: 0, padding: 0, background: '#FFFFFF' }}>
+      <body style={{ margin: 0, padding: 0, background: '#F5F0E8' }}>
         {children}
       </body>
     </html>

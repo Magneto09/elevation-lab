@@ -7,25 +7,26 @@ import { supabase } from "@/lib/supabase";
 
 
 const C = {
-  bg: "#FFFFFF",
+  bg: "#F5F0E8",
   bgCard: "#FFFFFF",
-  purple: "#0A0A0A",
-  magenta: "#0A0A0A",
-  cyan: "#0A0A0A",
-  gold: "#806600",
-  orange: "#D97706",
-  pink: "#0A0A0A",
-  lime: "#0A0A0A",
-  blue: "#2563EB",
-  red: "#DC2626",
-  textPrimary: "#0A0A0A",
-  textSecondary: "#4B5563",
-  textMuted: "#9CA3AF",
-  border: "#E5E7EB",
-  green: "#059669",
-  greenLight: "#10B981",
-  beige: "#F9FAFB",
-  cream: "#F3F4F6",
+  purple: "#2D5440",
+  magenta: "#5A8A3C",
+  cyan: "#1E3A2F",
+  gold: "#8BC34A",
+  orange: "#6BAF3A",
+  pink: "#C8DEC0",
+  lime: "#8BC34A",
+  blue: "#2D5440",
+  red: "#C0392B",
+  textPrimary: "#1E3A2F",
+  textSecondary: "#4A6A50",
+  textMuted: "#7A9A80",
+  border: "#C8DEC0",
+  green: "#1E3A2F",
+  greenLight: "#2D5440",
+  greenAccent: "#8BC34A",
+  beige: "#EAE4D8",
+  cream: "#F5F0E8",
 };
 
 const BADGES = {
@@ -43,37 +44,40 @@ const BADGES = {
 
 
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@400;500;600&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
-body{background:#FFFFFF;color:#0A0A0A;font-family:'Inter',sans-serif}
+body{background:#F5F0E8;color:#1E3A2F;font-family:'Inter',sans-serif}
 
 .title-rainbow{
-  color:#0A0A0A;
-  background:none;
-  -webkit-background-clip:initial;background-clip:initial;
-  -webkit-text-fill-color:#0A0A0A;
+  color:#1E3A2F;
+  background:linear-gradient(90deg,#1E3A2F,#2D5440,#8BC34A,#2D5440,#1E3A2F);
+  background-size:200% auto;
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;
+  animation:gradientShift 6s ease infinite;
 }
-
-@keyframes warpIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes warpIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes rotateSlow{from{transform:rotate(0)}to{transform:rotate(360deg)}}
-@keyframes pulseGlow{0%,100%{opacity:0.7}50%{opacity:1}}
+@keyframes pulseGlow{0%,100%{opacity:0.8}50%{opacity:1}}
 
-.rainbow-spin{background:#0A0A0A;animation:rotateSlow 8s linear infinite}
-.rainbow-spin-reverse{background:#374151;animation:rotateSlow 10s linear infinite reverse}
+.rainbow-spin{background:conic-gradient(from 0deg,#1E3A2F,#8BC34A,#2D5440,#C8DEC0,#1E3A2F);animation:rotateSlow 8s linear infinite}
+.rainbow-spin-reverse{background:conic-gradient(from 0deg,#8BC34A,#1E3A2F,#C8DEC0,#2D5440,#8BC34A);animation:rotateSlow 10s linear infinite reverse}
 
 .text-glow-pulse{animation:pulseGlow 2.5s ease-in-out infinite}
 
 .input-glow:focus{
-  border-color:#0A0A0A !important;
-  box-shadow:0 0 0 3px rgba(10,10,10,0.08) !important;
+  border-color:#2D5440 !important;
+  box-shadow:0 0 0 3px rgba(45,84,64,0.1) !important;
+  outline:none;
 }
 
-input::placeholder,textarea::placeholder{color:#9CA3AF}
-::-webkit-scrollbar{width:6px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:4px}
-::-webkit-scrollbar-thumb:hover{background:#9CA3AF}
+input::placeholder,textarea::placeholder{color:#9AB09A}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:#EAE4D8}
+::-webkit-scrollbar-thumb{background:#C8DEC0;border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:#8BC34A}
 `;
 
 
@@ -279,10 +283,11 @@ function Card({ children, style = {}, onClick, intense }) {
     <div onClick={onClick}
       onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
       style={{
-        background: intense ? "#F7F6F3" : "#FFFFFF", borderRadius: 8, position: "relative",
-        border: `1px solid ${h ? "#D3D1CB" : "#EBEBEA"}`,
-        boxShadow: h && onClick ? "0 2px 8px rgba(15,15,15,0.04)" : "none",
-        transition: "all 0.15s ease",
+        background: intense ? "rgba(255,255,255,0.96)" : "#FFFFFF",
+        borderRadius: 12, position: "relative",
+        border: `1px solid ${h && onClick ? "#8BC34A" : "#C8DEC0"}`,
+        boxShadow: h && onClick ? "0 4px 16px rgba(30,58,47,0.1)" : "0 1px 3px rgba(30,58,47,0.06)",
+        transition: "all 0.25s ease",
         cursor: onClick ? "pointer" : "default",
         overflow: "hidden", ...style,
       }}
@@ -1456,8 +1461,8 @@ export default function App() {
   if (scr === "onboard") return (<div style={{ background: C.bg, minHeight: "100vh" }}><TripBg /><Onboarding onComplete={n => { setUser(n); setScr("app"); }} /><style>{CSS}</style></div>);
 
   const Modal = ({ children, onClose, title }) => (
-    <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(44,36,24,0.5)", backdropFilter: "blur(16px)", display: "flex", alignItems: "flex-end", justifyContent: "center", animation: "fadeIn 0.2s" }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, maxHeight: "85vh", background: "linear-gradient(180deg,rgba(250,247,242,0.97),rgba(245,239,230,0.99))", borderRadius: "22px 22px 0 0", border: `1px solid ${C.border}`, borderBottom: "none", overflow: "auto", animation: "slideUp 0.4s cubic-bezier(.25,.8,.25,1)", backdropFilter: "blur(20px)" }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(30,58,47,0.4)", backdropFilter: "blur(16px)", display: "flex", alignItems: "flex-end", justifyContent: "center", animation: "fadeIn 0.2s" }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, maxHeight: "85vh", background: "linear-gradient(180deg,#FDFAF5,#F5F0E8)", borderRadius: "22px 22px 0 0", border: `1px solid ${C.border}`, borderBottom: "none", overflow: "auto", animation: "slideUp 0.4s cubic-bezier(.25,.8,.25,1)", backdropFilter: "blur(20px)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
           <span style={{ color: C.textPrimary, fontWeight: 700, fontFamily: "'Syne', sans-serif", fontSize: 15 }}>{title}</span>
           <button onClick={onClose} style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", width: 24, height: 24 }}><Icons.X /></button>

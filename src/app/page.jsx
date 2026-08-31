@@ -30,16 +30,16 @@ const C = {
 };
 
 const BADGES = {
-  first_post: { emoji: "🎨", name: "First Post", desc: "Shared your first creation" },
-  first_follower: { emoji: "👋", name: "First Follower", desc: "Someone believes in you" },
-  streak_7: { emoji: "🔥", name: "Week Warrior", desc: "7-day streak" },
-  streak_30: { emoji: "⚡", name: "Consistency King", desc: "30-day streak" },
-  ten_ideas: { emoji: "💡", name: "Idea Machine", desc: "Captured 10 ideas" },
-  first_goal: { emoji: "🎯", name: "Goal Setter", desc: "Set your first goal" },
-  goal_crusher: { emoji: "🏆", name: "Goal Crusher", desc: "Completed a goal" },
-  social_butterfly: { emoji: "🦋", name: "Social Butterfly", desc: "Followed 5 people" },
-  reflection_master: { emoji: "📖", name: "Reflection Master", desc: "10 reflections" },
-  vision_maker: { emoji: "✨", name: "Vision Maker", desc: "10 vision board items" },
+  first_post: { emoji: "✦", name: "First Post", desc: "Shared your first creation" },
+  first_follower: { emoji: "◯", name: "First Follower", desc: "Someone believes in you" },
+  streak_7: { emoji: "◈", name: "Week Warrior", desc: "7-day streak" },
+  streak_30: { emoji: "△", name: "Consistency King", desc: "30-day streak" },
+  ten_ideas: { emoji: "△", name: "Idea Machine", desc: "Captured 10 ideas" },
+  first_goal: { emoji: "◎", name: "Goal Setter", desc: "Set your first goal" },
+  goal_crusher: { emoji: "◬", name: "Goal Crusher", desc: "Completed a goal" },
+  social_butterfly: { emoji: "⬡", name: "Social Butterfly", desc: "Followed 5 people" },
+  reflection_master: { emoji: "☽", name: "Reflection Master", desc: "10 reflections" },
+  vision_maker: { emoji: "◬", name: "Vision Maker", desc: "10 vision board items" },
 };
 
 
@@ -50,11 +50,8 @@ body{background:#F5F0E8;color:#1E3A2F;font-family:'Inter',sans-serif}
 
 .title-rainbow{
   color:#1E3A2F;
-  background:linear-gradient(90deg,#1E3A2F,#2D5440,#8BC34A,#2D5440,#1E3A2F);
-  background-size:200% auto;
-  -webkit-background-clip:text;background-clip:text;
-  -webkit-text-fill-color:transparent;
-  animation:gradientShift 6s ease infinite;
+  font-family:'Georgia',serif;
+  letter-spacing:-0.5px;
 }
 @keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 @keyframes warpIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
@@ -459,7 +456,7 @@ function Onboarding({ onComplete }) {
                     }
                     onComplete(name);
                   }
-                }} disabled={!goal || authLoading} full color={C.purple}>{authLoading ? "Creating account..." : "✦ Enter the Lab ✦"}</Btn></div>
+                }} disabled={!goal || authLoading} full color={C.purple}>{authLoading ? "Creating account..." : "◈ Enter the Portal ◈"}</Btn></div>
           </div>
         )}
         <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 32 }}>
@@ -1459,7 +1456,7 @@ export default function App() {
   };
 
   // Loading screen
-  if (scr === "loading") return (<div style={{ background: C.bg, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}><TripBg /><div className="text-glow-pulse" style={{ color: C.cyan, fontFamily: "'Syne', sans-serif", fontSize: 20, position: "relative", zIndex: 1 }}>Loading...</div><style>{CSS}</style></div>);
+  if (scr === "loading") return (<div style={{ background: C.bg, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}><TripBg /><div className="text-glow-pulse" style={{ color: C.green, fontFamily: "'Inter', sans-serif", fontSize: 20, position: "relative", zIndex: 1 }}>Loading...</div><style>{CSS}</style></div>);
 
   if (scr === "onboard") return (<div style={{ background: C.bg, minHeight: "100vh" }}><TripBg /><Onboarding onComplete={n => { setUser(n); setScr("app"); }} /><style>{CSS}</style></div>);
 
@@ -1525,7 +1522,7 @@ export default function App() {
       </Card>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 28 }}>
-        {[{ l: "Capture Idea", i: "💡", a: () => setTab("workspace") || setWorkspaceTab("ideas"), c: C.gold },{ l: "Start Session", i: "🌀", a: () => setShowS(true), c: C.cyan },{ l: "AI Assistant", i: "🔮", a: () => setShowAI(true), c: C.purple },{ l: "Reflect", i: "🪞", a: () => setTab("workspace") || setWorkspaceTab("reflect"), c: C.magenta }].map((q, idx) => (
+        {[{ l: "Capture Idea", i: "△", a: () => setTab("workspace") || setWorkspaceTab("ideas"), c: C.gold },{ l: "Start Session", i: "🌀", a: () => setShowS(true), c: C.cyan },{ l: "AI Assistant", i: "🔮", a: () => setShowAI(true), c: C.purple },{ l: "Reflect", i: "🪞", a: () => setTab("workspace") || setWorkspaceTab("reflect"), c: C.magenta }].map((q, idx) => (
           <Card key={idx} onClick={q.a} style={{ padding: "16px 14px", display: "flex", alignItems: "center", gap: 12 }}>
             <span style={{ fontSize: 24, filter: "none", animation: "floatTrip 3s ease-in-out infinite", animationDelay: `${idx*0.4}s` }}>{q.i}</span>
             <span style={{ color: C.textPrimary, fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>{q.l}</span>
@@ -1664,7 +1661,7 @@ export default function App() {
                 </div>
               )}
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                {[{e:"🙏",t:"appreciation"},{e:"✨",t:"inspiration"},{e:"🤔",t:"curiosity"}].map(r => {
+                {[{e:"✦",t:"appreciation"},{e:"◯",t:"inspiration"},{e:"△",t:"curiosity"}].map(r => {
                   const active = myReactions[p.id]?.[r.t];
                   const count = reactionCounts[p.id]?.[r.t] || 0;
                   return (
@@ -1675,7 +1672,7 @@ export default function App() {
                   );
                 })}
                 <button onClick={() => toggleBookmark(p.id)} style={{ display: "flex", alignItems: "center", background: bookmarkedIds.has(p.id) ? "#FEF3C7" : "none", border: bookmarkedIds.has(p.id) ? "1px solid #FDE68A" : "1px solid transparent", color: bookmarkedIds.has(p.id) ? "#92400E" : C.textMuted, cursor: "pointer", fontSize: 14, padding: "5px 8px", borderRadius: 16, marginLeft: "auto" }}>
-                  {bookmarkedIds.has(p.id) ? "🔖" : "📑"}
+                  {bookmarkedIds.has(p.id) ? "◎" : "△"}
                 </button>
                 {p.user_id === authUser?.id && !portfolioItems.some(pi => pi.post_id === p.id) && (
                   <button onClick={() => addToPortfolio(p.id)} title="Feature in portfolio" style={{ display: "flex", alignItems: "center", background: "none", border: "1px solid transparent", color: C.textMuted, cursor: "pointer", fontSize: 14, padding: "5px 8px", borderRadius: 16 }}>⭐</button>
@@ -1806,7 +1803,7 @@ export default function App() {
           {[
             { id: "heatmap", label: "Activity" },
             { id: "sessions", label: "Sessions" },
-            { id: "habits", label: "Habits" },
+            { id: "habits", label: "❋ Habits" },
             { id: "tags", label: "Tags" },
           ].map(t => (
             <button key={t.id} onClick={() => setAnalyticsView(t.id)} style={{
@@ -1920,13 +1917,13 @@ export default function App() {
       {/* Sub-tabs */}
       <div style={{ display: "flex", gap: 4, marginBottom: 20, background: "#F3F4F6", padding: 4, borderRadius: 10, overflowX: "auto" }}>
         {[
-          { id: "ideas", label: "Ideas" },
-          { id: "tasks", label: "Tasks" },
-          { id: "habits", label: "Habits" },
-          { id: "goals", label: "Goals" },
-          { id: "vision", label: "Vision" },
-          { id: "reflect", label: "Reflect" },
-          { id: "analytics", label: "Analytics" },
+          { id: "ideas", label: "✦ Ideas" },
+          { id: "tasks", label: "⟁ Tasks" },
+          { id: "habits", label: "❋ Habits" },
+          { id: "goals", label: "◈ Goals" },
+          { id: "vision", label: "◬ Vision" },
+          { id: "reflect", label: "☽ Reflect" },
+          { id: "analytics", label: "◉ Analytics" },
         ].map(t => (
           <button key={t.id} onClick={() => setWsTab(t.id)} style={{
             flex: "0 0 auto", padding: "8px 14px", borderRadius: 7, border: "none", whiteSpace: "nowrap",
@@ -2005,7 +2002,7 @@ export default function App() {
           <p style={{ color: C.textMuted, fontSize: 13, fontFamily: "'Inter', sans-serif", textAlign: "center", padding: "20px 0" }}>Loading...</p>
         ) : (
           leaderboard.map((entry, i) => {
-            const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : null;
+            const medal = i === 0 ? "△" : i === 1 ? "◯" : i === 2 ? "✦" : null;
             return (
               <Card key={entry.user_id} onClick={() => openUserProfile(entry.user_id)} style={{ display: "flex", alignItems: "center", gap: 12, padding: 14, marginBottom: 8 }}>
                 <div style={{ width: 32, textAlign: "center", fontSize: medal ? 20 : 13, color: C.textPrimary, fontWeight: 700, fontFamily: "'Inter', sans-serif" }}>{medal || ("#" + (i + 1))}</div>
@@ -2028,10 +2025,10 @@ export default function App() {
       <h2 style={{ fontFamily: "'Inter', sans-serif", fontSize: 24, fontWeight: 700, marginBottom: 20, color: C.textPrimary }}>Community</h2>
       <div style={{ display: "flex", gap: 4, marginBottom: 20, background: "#F3F4F6", padding: 4, borderRadius: 10 }}>
         {[
-          { id: "feed", label: "Feed" },
-          { id: "explore", label: "Explore" },
-          { id: "circles", label: "Circles" },
-          { id: "leaderboard", label: "Top" },
+          { id: "feed", label: "✦ Feed" },
+          { id: "explore", label: "◯ Explore" },
+          { id: "circles", label: "⬡ Circles" },
+          { id: "leaderboard", label: "△ Top" },
         ].map(t => (
           <button key={t.id} onClick={() => setCommTab(t.id)} style={{
             flex: 1, padding: "8px 12px", borderRadius: 7, border: "none",
@@ -2139,7 +2136,7 @@ export default function App() {
             <input type="file" accept="image/*" onChange={e => e.target.files[0] && addVisionImage(e.target.files[0])} style={{ display: "none" }} />
           </label>
           <button onClick={() => setShowVisionForm(!showVisionForm)} style={{ background: "#fff", color: "#0A0A0A", border: "1px solid #E5E7EB", padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>+ Note</button>
-          {visionItems.length > 0 && <button onClick={exportVisionBoard} disabled={exportingBoard} style={{ background: "#fff", color: "#0A0A0A", border: "1px solid #E5E7EB", padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>{exportingBoard ? "..." : "📥 Export"}</button>}
+          {visionItems.length > 0 && <button onClick={exportVisionBoard} disabled={exportingBoard} style={{ background: "#fff", color: "#0A0A0A", border: "1px solid #E5E7EB", padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>{exportingBoard ? "..." : "◬ Export"}</button>}
         </div>
       </div>
       {showVisionForm && (
@@ -2429,7 +2426,7 @@ export default function App() {
               <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
                 {myBadges.map(k => (
                   <div key={k} title={BADGES[k]?.desc || ""} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, minWidth: 60 }}>
-                    <div style={{ fontSize: 28 }}>{BADGES[k]?.emoji || "🏅"}</div>
+                    <div style={{ fontSize: 28 }}>{BADGES[k]?.emoji || "◈"}</div>
                     <div style={{ fontSize: 9, color: C.textMuted, fontFamily: "'Inter', sans-serif", textAlign: "center", lineHeight: 1.2 }}>{BADGES[k]?.name || k}</div>
                   </div>
                 ))}
@@ -2438,27 +2435,27 @@ export default function App() {
           </>
         )}
         <Card onClick={() => setProfilePage("reminders")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", marginBottom: 8 }}>
-          <span style={{ fontSize: 16 }}>⏰</span>
+          <span style={{ fontSize: 16 }}>❋</span>
           <span style={{ color: C.textPrimary, fontSize: 12, fontFamily: "'Space Mono', monospace", flex: 1 }}>Reminders</span>
           <span style={{ color: C.textMuted }}>→</span>
         </Card>
         <Card onClick={() => setProfilePage("collections")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", marginBottom: 8 }}>
-          <span style={{ fontSize: 16 }}>🔖</span>
+          <span style={{ fontSize: 16 }}>◎</span>
           <span style={{ color: C.textPrimary, fontSize: 12, fontFamily: "'Space Mono', monospace", flex: 1 }}>Saved Posts</span>
           <span style={{ color: C.textMuted }}>→</span>
         </Card>
         <Card onClick={() => setProfilePage("portfolio")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", marginBottom: 8 }}>
-          <span style={{ fontSize: 16 }}>🎨</span>
+          <span style={{ fontSize: 16 }}>◬</span>
           <span style={{ color: C.textPrimary, fontSize: 12, fontFamily: "'Space Mono', monospace", flex: 1 }}>Creator Portfolio</span>
           <span style={{ color: C.textMuted }}>→</span>
         </Card>
         <Card onClick={() => setProfilePage("guidelines")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", marginBottom: 8 }}>
-          <span style={{ fontSize: 16 }}>📋</span>
+          <span style={{ fontSize: 16 }}>⟁</span>
           <span style={{ color: C.textPrimary, fontSize: 12, fontFamily: "'Space Mono', monospace", flex: 1 }}>Community Guidelines</span>
           <span style={{ color: C.textMuted }}>→</span>
         </Card>
         <Card onClick={() => setProfilePage("about")} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", marginBottom: 8 }}>
-          <span style={{ fontSize: 16 }}>🌿</span>
+          <span style={{ fontSize: 16 }}>◯</span>
           <span style={{ color: C.textPrimary, fontSize: 12, fontFamily: "'Space Mono', monospace", flex: 1 }}>About Elevation Club</span>
           <span style={{ color: C.textMuted }}>→</span>
         </Card>
@@ -2562,12 +2559,12 @@ export default function App() {
           </div>
           {notifications.length === 0 ? (
             <div style={{ textAlign: "center", padding: 40 }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>🔕</div>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>◯</div>
               <p style={{ color: C.textMuted, fontSize: 13, fontFamily: "'Inter', sans-serif" }}>No notifications yet</p>
             </div>
           ) : (
             notifications.map(n => {
-              const emoji = n.type === "follow" ? "👋" : n.type === "comment" ? "💬" : n.type === "reaction" ? "✨" : n.type === "badge" ? "🏆" : "🔔";
+              const emoji = n.type === "follow" ? "👋" : n.type === "comment" ? "◯" : n.type === "reaction" ? "✨" : n.type === "badge" ? "🏆" : "✦";
               return (
                 <Card key={n.id} onClick={() => { if (n.actor_id) { setShowNotifications(false); openUserProfile(n.actor_id); } }} style={{ padding: 14, marginBottom: 8, borderLeft: n.is_read ? "3px solid transparent" : "3px solid #0A0A0A" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -2672,7 +2669,7 @@ export default function App() {
           </div>
           <Card style={{ padding: 16, marginBottom: 16, background: "#F9FAFB" }}>
             <p style={{ color: C.textSecondary, fontSize: 12, fontFamily: "'Inter', sans-serif", margin: "0 0 12px", lineHeight: 1.5 }}>Get personalized creative suggestions based on your ideas, habits, and goals.</p>
-            <Btn onClick={generateAISuggestion} disabled={aiLoading} full>{aiLoading ? "Generating..." : "✨ Generate New Suggestion"}</Btn>
+            <Btn onClick={generateAISuggestion} disabled={aiLoading} full>{aiLoading ? "Generating..." : "❋ Generate New Suggestion"}</Btn>
           </Card>
           {aiSuggestions.map(s => (
             <Card key={s.id} style={{ padding: 16, marginBottom: 10 }}>
@@ -2708,10 +2705,10 @@ export default function App() {
   // Stripped home content (no padding wrapper since layout provides it)
   const renderHomeContent = () => {
     const quick = [
-      { label: "Capture Idea", icon: "💡", c: C.gold, action: () => setWsTab("ideas") || setTab("workspace") },
-      { label: "New Task", icon: "✅", c: C.green, action: () => setWsTab("tasks") || setTab("workspace") },
-      { label: "Start Session", icon: "⚡", c: C.greenAccent, action: () => setShowS(true) },
-      { label: "AI Suggest", icon: "✨", c: C.purple, action: () => setShowAISuggest(true) },
+      { label: "Capture Idea", icon: "△", c: C.gold, action: () => setWsTab("ideas") || setTab("workspace") },
+      { label: "New Task", icon: "⟁", c: C.green, action: () => setWsTab("tasks") || setTab("workspace") },
+      { label: "Start Session", icon: "◎", c: C.greenAccent, action: () => setShowS(true) },
+      { label: "AI Suggest", icon: "❋", c: C.purple, action: () => setShowAISuggest(true) },
     ];
     return (
       <div style={{ animation: "warpIn 0.4s" }}>
@@ -2759,7 +2756,7 @@ export default function App() {
   const renderCommunityContent = () => (
     <div style={{ animation: "warpIn 0.4s" }}>
       <div style={{ display: "flex", gap: 4, marginBottom: 16, background: "#EAE4D8", padding: 4, borderRadius: 10 }}>
-        {[{ id: "feed", label: "Feed" }, { id: "explore", label: "Explore" }, { id: "circles", label: "Circles" }, { id: "leaderboard", label: "Top" }].map(t => (
+        {[{ id: "feed", label: "✦ Feed" }, { id: "explore", label: "◯ Explore" }, { id: "circles", label: "⬡ Circles" }, { id: "leaderboard", label: "△ Top" }].map(t => (
           <button key={t.id} onClick={() => setCommTab(t.id)} style={{
             flex: 1, padding: "7px 10px", borderRadius: 7, border: "none",
             background: commTab === t.id ? "#FFFFFF" : "transparent",
@@ -2798,10 +2795,10 @@ export default function App() {
           {/* Center Nav */}
           <div style={{ display: "flex", gap: 4 }}>
             {[
-              { id: "home", label: "Home", icon: "🏠" },
-              { id: "workspace", label: "Workspace", icon: "💡" },
-              { id: "community", label: "Community", icon: "👥" },
-              { id: "profile", label: "Profile", icon: "👤" },
+              { id: "home", label: "Home", icon: "◯" },
+              { id: "workspace", label: "Workspace", icon: "△" },
+              { id: "community", label: "Community", icon: "⊕" },
+              { id: "profile", label: "Profile", icon: "◈" },
             ].map(t => (
               <button key={t.id} onClick={() => setTab(t.id)} style={{
                 background: tab === t.id ? "rgba(255,255,255,0.15)" : "transparent",
@@ -2868,10 +2865,10 @@ export default function App() {
             </div>
             <div style={{ padding: "6px 0" }}>
               {[
-                { id: "home", label: "Home", icon: "🏠" },
-                { id: "workspace", label: "Workspace", icon: "💡" },
-                { id: "community", label: "Community", icon: "👥" },
-                { id: "profile", label: "Profile", icon: "👤" },
+                { id: "home", label: "Home", icon: "◯" },
+                { id: "workspace", label: "Workspace", icon: "△" },
+                { id: "community", label: "Community", icon: "⊕" },
+                { id: "profile", label: "Profile", icon: "◈" },
               ].map(n => (
                 <div key={n.id} onClick={() => setTab(n.id)} style={{
                   padding: "8px 14px", fontSize: 13, color: tab === n.id ? C.green : C.textSecondary,
@@ -2909,7 +2906,7 @@ export default function App() {
               </div>
               <div style={{ padding: 12, display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {myBadges.slice(0, 6).map(k => (
-                  <div key={k} title={BADGES[k]?.name} style={{ fontSize: 22 }}>{BADGES[k]?.emoji || "🏅"}</div>
+                  <div key={k} title={BADGES[k]?.name} style={{ fontSize: 22 }}>{BADGES[k]?.emoji || "◈"}</div>
                 ))}
               </div>
             </Card>
@@ -2924,7 +2921,7 @@ export default function App() {
               <div style={{ padding: "6px 0" }}>
                 {circles.filter(c => myCircles.includes(c.id)).slice(0, 5).map(c => (
                   <div key={c.id} onClick={() => { setTab("community"); setCommTab("circles"); }} style={{ padding: "7px 14px", fontSize: 12, color: C.textPrimary, fontFamily: "'Inter', sans-serif", cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
-                    <span>{c.emoji || "🟢"}</span> {c.name}
+                    <span>{c.emoji || "⬡"}</span> {c.name}
                   </div>
                 ))}
               </div>
@@ -3022,7 +3019,7 @@ export default function App() {
       {renderHashtagView()}
       {renderAISuggest()}
 
-      {showS && <Modal title="✦ Creative Session" onClose={() => setShowS(false)}><Session onClose={() => setShowS(false)} onSave={async (type, mins, notes) => {
+      {showS && <Modal title="◎ Creative Session" onClose={() => setShowS(false)}><Session onClose={() => setShowS(false)} onSave={async (type, mins, notes) => {
         if (!authUser) return;
         await supabase.from("sessions").insert({ user_id: authUser.id, session_type: type, duration_minutes: mins, notes });
         setSessionCount(prev => prev + 1);

@@ -74,6 +74,9 @@ body{background:#F5F0E8;color:#1E3A2F;font-family:'Inter',sans-serif}
 }
 
 input::placeholder,textarea::placeholder{color:#9AB09A}
+@media(max-width:768px){
+  .desktop-only{display:none!important}
+}
 ::-webkit-scrollbar{width:5px}
 ::-webkit-scrollbar-track{background:#EAE4D8}
 ::-webkit-scrollbar-thumb{background:#C8DEC0;border-radius:4px}
@@ -2693,28 +2696,338 @@ export default function App() {
 
   const tabs = { home: renderHome, workspace: renderWorkspace, community: renderCommunity, profile: renderProfile };
 
+  // ============ RENDER SUB-CONTENT (what goes in the main column) ============
+  const renderMainContent = () => {
+    if (tab === "home") return renderHomeContent();
+    if (tab === "workspace") return renderWorkspace();
+    if (tab === "community") return renderCommunityContent();
+    if (tab === "profile") return renderProfile();
+    return renderHomeContent();
+  };
+
+  // Stripped home content (no padding wrapper since layout provides it)
+  const renderHomeContent = () => {
+    const quick = [
+      { label: "Capture Idea", icon: "💡", c: C.gold, action: () => setWsTab("ideas") || setTab("workspace") },
+      { label: "New Task", icon: "✅", c: C.green, action: () => setWsTab("tasks") || setTab("workspace") },
+      { label: "Start Session", icon: "⚡", c: C.greenAccent, action: () => setShowS(true) },
+      { label: "AI Suggest", icon: "✨", c: C.purple, action: () => setShowAISuggest(true) },
+    ];
+    return (
+      <div style={{ animation: "warpIn 0.4s" }}>
+        {/* Quick actions */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
+          {quick.map((q, i) => (
+            <Card key={i} onClick={q.action} intense style={{ padding: "14px 12px", display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 20 }}>{q.icon}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: C.textPrimary, fontFamily: "'Inter', sans-serif" }}>{q.label}</span>
+            </Card>
+          ))}
+        </div>
+        {/* Recent ideas */}
+        {ideas.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <h3 style={{ fontSize: 12, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8, fontFamily: "'Inter', sans-serif" }}>Recent Ideas</h3>
+            {ideas.slice(0, 3).map((idea, i) => (
+              <Card key={i} style={{ padding: "10px 14px", marginBottom: 6, display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 14 }}>💡</span>
+                <span style={{ fontSize: 12, color: C.textPrimary, fontFamily: "'Inter', sans-serif", lineHeight: 1.4 }}>{idea.text}</span>
+              </Card>
+            ))}
+          </div>
+        )}
+        {/* Recent posts in feed */}
+        {posts.slice(0, 3).map((p, i) => {
+          const authorName = p.profiles?.name || "Anonymous";
+          const hue = (i * 70) % 360;
+          return (
+            <Card key={p.id} style={{ marginBottom: 10, padding: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                <div onClick={() => openUserProfile(p.user_id)} style={{ width: 28, height: 28, borderRadius: "50%", background: "#D8E8D0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: C.green, cursor: "pointer", flexShrink: 0 }}>{authorName[0]?.toUpperCase()}</div>
+                <span onClick={() => openUserProfile(p.user_id)} style={{ fontSize: 12, fontWeight: 600, color: C.textPrimary, fontFamily: "'Inter', sans-serif", cursor: "pointer" }}>{authorName}</span>
+                <span style={{ fontSize: 10, color: C.textMuted, marginLeft: "auto" }}>{new Date(p.created_at).toLocaleDateString()}</span>
+              </div>
+              {p.caption && <p style={{ fontSize: 12, color: C.textSecondary, lineHeight: 1.5, margin: "0 0 8px", fontFamily: "'Inter', sans-serif" }}>{p.caption}</p>}
+              {p.media_url && <img src={p.media_url} alt="" style={{ width: "100%", maxHeight: 200, objectFit: "cover", borderRadius: 8 }} />}
+            </Card>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderCommunityContent = () => (
+    <div style={{ animation: "warpIn 0.4s" }}>
+      <div style={{ display: "flex", gap: 4, marginBottom: 16, background: "#EAE4D8", padding: 4, borderRadius: 10 }}>
+        {[{ id: "feed", label: "Feed" }, { id: "explore", label: "Explore" }, { id: "circles", label: "Circles" }, { id: "leaderboard", label: "Top" }].map(t => (
+          <button key={t.id} onClick={() => setCommTab(t.id)} style={{
+            flex: 1, padding: "7px 10px", borderRadius: 7, border: "none",
+            background: commTab === t.id ? "#FFFFFF" : "transparent",
+            color: commTab === t.id ? C.textPrimary : C.textSecondary,
+            fontSize: 12, fontWeight: 500, fontFamily: "'Inter', sans-serif", cursor: "pointer",
+            boxShadow: commTab === t.id ? "0 1px 2px rgba(30,58,47,0.08)" : "none",
+          }}>{t.label}</button>
+        ))}
+      </div>
+      {commTab === "feed" && renderFeed()}
+      {commTab === "explore" && renderExplore()}
+      {commTab === "circles" && renderCircles()}
+      {commTab === "leaderboard" && renderLeaderboard()}
+    </div>
+  );
+
   return (
-    <div style={{ background: C.bg, minHeight: "100vh", maxWidth: 480, margin: "0 auto", position: "relative" }}>
+    <div style={{ background: C.bg, minHeight: "100vh", position: "relative" }}>
       <TripBg />
-      <div style={{ position: "relative", zIndex: 1 }}>{tabs[tab]?.() || renderHome()}</div>
+      <style>{CSS}</style>
+
+      {/* ── TOP NAV BAR ── */}
+      <div style={{ position: "sticky", top: 0, zIndex: 100, background: C.green, boxShadow: "0 2px 8px rgba(30,58,47,0.15)" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", height: 48 }}>
+          {/* Logo */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 30, height: 30, borderRadius: 8, background: C.greenAccent, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <ElevateLogo size={20} />
+            </div>
+            <div>
+              <div style={{ color: "#FFFFFF", fontSize: 14, fontWeight: 700, fontFamily: "Georgia, serif", letterSpacing: "-0.3px", lineHeight: 1 }}>elevation club</div>
+              <div style={{ color: C.greenAccent, fontSize: 8, letterSpacing: "0.12em", lineHeight: 1 }}>PORTAL TO A NEW WORLD</div>
+            </div>
+          </div>
+
+          {/* Center Nav */}
+          <div style={{ display: "flex", gap: 4 }}>
+            {[
+              { id: "home", label: "Home", icon: "🏠" },
+              { id: "workspace", label: "Workspace", icon: "💡" },
+              { id: "community", label: "Community", icon: "👥" },
+              { id: "profile", label: "Profile", icon: "👤" },
+            ].map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)} style={{
+                background: tab === t.id ? "rgba(255,255,255,0.15)" : "transparent",
+                border: "none", color: tab === t.id ? "#FFFFFF" : "rgba(255,255,255,0.65)",
+                padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: tab === t.id ? 600 : 400,
+                cursor: "pointer", fontFamily: "'Inter', sans-serif", display: "flex", alignItems: "center", gap: 6,
+              }}>
+                <span style={{ fontSize: 14 }}>{t.icon}</span>
+                <span style={{ display: "none" }}>{t.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Right actions */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button onClick={() => setShowAISuggest(true)} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "#FFFFFF", padding: "6px 10px", borderRadius: 8, fontSize: 13, cursor: "pointer" }}>✨</button>
+            <button onClick={() => setShowSearch(true)} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "#FFFFFF", padding: "6px 10px", borderRadius: 8, fontSize: 13, cursor: "pointer" }}>🔍</button>
+            <button onClick={openNotifications} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "#FFFFFF", padding: "6px 10px", borderRadius: 8, fontSize: 13, cursor: "pointer", position: "relative" }}>
+              🔔
+              {unreadCount > 0 && <span style={{ position: "absolute", top: 2, right: 2, background: "#E85D26", color: "#fff", fontSize: 8, fontWeight: 700, minWidth: 14, height: 14, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>{unreadCount}</span>}
+            </button>
+            <div style={{ width: 32, height: 32, borderRadius: "50%", background: C.greenAccent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: C.green, cursor: "pointer" }} onClick={() => setTab("profile")}>
+              {user?.[0]?.toUpperCase() || "?"}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── 3-COLUMN LAYOUT ── */}
+      <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 16, padding: "16px 20px 40px", position: "relative", zIndex: 1 }}>
+
+        {/* ── LEFT SIDEBAR ── */}
+        <div style={{ width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+
+          {/* Profile card */}
+          <Card style={{ overflow: "hidden" }}>
+            <div style={{ background: C.green, height: 50, position: "relative" }}>
+              <div style={{ position: "absolute", bottom: -18, left: 16, width: 36, height: 36, background: C.greenAccent, borderRadius: "50%", border: "3px solid #FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: C.green }}>{user?.[0]?.toUpperCase() || "?"}</div>
+            </div>
+            <div style={{ padding: "22px 14px 14px" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: C.textPrimary, fontFamily: "Georgia, serif", cursor: "pointer" }} onClick={() => setTab("profile")}>{user || "Creator"}</div>
+              <div style={{ fontSize: 11, color: C.textMuted, fontFamily: "'Inter', sans-serif", marginTop: 2 }}>Portal to a new world</div>
+              <div style={{ display: "flex", gap: 12, marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: C.green }}>{posts.filter(p => p.user_id === authUser?.id).length}</div>
+                  <div style={{ fontSize: 9, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.06em" }}>Posts</div>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: C.green }}>{myFollowerCount}</div>
+                  <div style={{ fontSize: 9, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.06em" }}>Followers</div>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: C.green }}>{ideas.length}</div>
+                  <div style={{ fontSize: 9, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.06em" }}>Ideas</div>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Nav menu */}
+          <Card style={{ overflow: "hidden" }}>
+            <div style={{ background: C.green, padding: "7px 12px" }}>
+              <span style={{ color: "#FFFFFF", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: "'Inter', sans-serif" }}>Navigate</span>
+            </div>
+            <div style={{ padding: "6px 0" }}>
+              {[
+                { id: "home", label: "Home", icon: "🏠" },
+                { id: "workspace", label: "Workspace", icon: "💡" },
+                { id: "community", label: "Community", icon: "👥" },
+                { id: "profile", label: "Profile", icon: "👤" },
+              ].map(n => (
+                <div key={n.id} onClick={() => setTab(n.id)} style={{
+                  padding: "8px 14px", fontSize: 13, color: tab === n.id ? C.green : C.textSecondary,
+                  fontFamily: "'Inter', sans-serif", fontWeight: tab === n.id ? 600 : 400,
+                  borderLeft: `3px solid ${tab === n.id ? C.greenAccent : "transparent"}`,
+                  background: tab === n.id ? "#EAF2E8" : "transparent",
+                  cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
+                }}>
+                  <span style={{ fontSize: 15 }}>{n.icon}</span>
+                  {n.label}
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* Streak */}
+          {currentStreak > 0 && (
+            <Card style={{ padding: 14, background: "#FFF5E6", border: "1px solid #E8C87A" }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#8A6000", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6, fontFamily: "'Inter', sans-serif" }}>Current Streak</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 28 }}>🔥</span>
+                <div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: "#D97B00" }}>{currentStreak}</div>
+                  <div style={{ fontSize: 10, color: "#A07830", fontFamily: "'Inter', sans-serif" }}>days in a row</div>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* My Badges */}
+          {myBadges.length > 0 && (
+            <Card style={{ overflow: "hidden" }}>
+              <div style={{ background: C.green, padding: "7px 12px" }}>
+                <span style={{ color: "#FFFFFF", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: "'Inter', sans-serif" }}>My Badges</span>
+              </div>
+              <div style={{ padding: 12, display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {myBadges.slice(0, 6).map(k => (
+                  <div key={k} title={BADGES[k]?.name} style={{ fontSize: 22 }}>{BADGES[k]?.emoji || "🏅"}</div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* My Circles */}
+          {myCircles.length > 0 && (
+            <Card style={{ overflow: "hidden" }}>
+              <div style={{ background: C.green, padding: "7px 12px" }}>
+                <span style={{ color: "#FFFFFF", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: "'Inter', sans-serif" }}>My Circles</span>
+              </div>
+              <div style={{ padding: "6px 0" }}>
+                {circles.filter(c => myCircles.includes(c.id)).slice(0, 5).map(c => (
+                  <div key={c.id} onClick={() => { setTab("community"); setCommTab("circles"); }} style={{ padding: "7px 14px", fontSize: 12, color: C.textPrimary, fontFamily: "'Inter', sans-serif", cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
+                    <span>{c.emoji || "🟢"}</span> {c.name}
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+        </div>
+
+        {/* ── MAIN CONTENT ── */}
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 0 }}>
+          {renderMainContent()}
+        </div>
+
+        {/* ── RIGHT SIDEBAR ── */}
+        <div style={{ width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+
+          {/* Quick post composer */}
+          <Card style={{ overflow: "hidden" }}>
+            <div style={{ background: "#2D5440", padding: "7px 12px" }}>
+              <span style={{ color: "#FFFFFF", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: "'Inter', sans-serif" }}>Share something</span>
+            </div>
+            <div style={{ padding: 12 }}>
+              <textarea value={newPost} onChange={e => setNewPost(e.target.value)} placeholder="What are you creating today?" rows={3} style={{ width: "100%", padding: "8px 10px", background: "#F0EAE0", border: `1px solid ${C.border}`, borderRadius: 6, color: C.textPrimary, fontSize: 12, fontFamily: "'Inter', sans-serif", outline: "none", boxSizing: "border-box", resize: "none", marginBottom: 8 }} />
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <label style={{ background: "#EAE4D8", color: C.textSecondary, padding: "4px 10px", borderRadius: 6, fontSize: 11, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
+                  📷
+                  <input type="file" accept="image/*" onChange={e => e.target.files[0] && setSelectedImage(e.target.files[0])} style={{ display: "none" }} />
+                </label>
+                <button onClick={addPost} disabled={(!newPost.trim() && !selectedImage) || uploadingImage} style={{ background: C.green, color: "#FFFFFF", border: "none", padding: "5px 14px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>{uploadingImage ? "..." : "Post"}</button>
+              </div>
+            </div>
+          </Card>
+
+          {/* Trending hashtags */}
+          {trendingHashtags.length > 0 && (
+            <Card style={{ overflow: "hidden" }}>
+              <div style={{ background: C.green, padding: "7px 12px" }}>
+                <span style={{ color: "#FFFFFF", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: "'Inter', sans-serif" }}>Trending</span>
+              </div>
+              <div style={{ padding: "8px 0" }}>
+                {trendingHashtags.slice(0, 6).map(h => (
+                  <div key={h.id} onClick={() => openHashtag(h.tag)} style={{ padding: "6px 14px", fontSize: 12, color: C.green, fontFamily: "'Inter', sans-serif", cursor: "pointer", fontWeight: 500, display: "flex", justifyContent: "space-between" }}>
+                    <span>#{h.tag}</span>
+                    <span style={{ color: C.textMuted, fontSize: 11 }}>{h.post_count}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* Suggested creators */}
+          {suggestedUsers.filter(u => !myFollowingIds.includes(u.id)).length > 0 && (
+            <Card style={{ overflow: "hidden" }}>
+              <div style={{ background: C.green, padding: "7px 12px" }}>
+                <span style={{ color: "#FFFFFF", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: "'Inter', sans-serif" }}>People you may know</span>
+              </div>
+              <div style={{ padding: "6px 0" }}>
+                {suggestedUsers.filter(u => !myFollowingIds.includes(u.id)).slice(0, 4).map(u => (
+                  <div key={u.id} style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 8 }}>
+                    <div onClick={() => openUserProfile(u.id)} style={{ width: 28, height: 28, borderRadius: "50%", background: "#D8E8D0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: C.green, cursor: "pointer", flexShrink: 0 }}>{u.name?.[0]?.toUpperCase() || "?"}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div onClick={() => openUserProfile(u.id)} style={{ fontSize: 12, fontWeight: 600, color: C.textPrimary, fontFamily: "'Inter', sans-serif", cursor: "pointer", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.name || "Anonymous"}</div>
+                    </div>
+                    <button onClick={() => toggleFollow(u.id)} style={{ background: C.green, color: "#FFFFFF", border: "none", padding: "3px 10px", borderRadius: 12, fontSize: 10, fontWeight: 600, cursor: "pointer", flexShrink: 0 }}>Follow</button>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* AI Suggest widget */}
+          <Card style={{ padding: 14, background: "#FFF9E6", border: "1px solid #E8D48C" }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#7A5A00", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6, fontFamily: "'Inter', sans-serif" }}>✨ AI Suggest</div>
+            {aiSuggestions.length > 0 ? (
+              <p style={{ fontSize: 11, color: "#5A4A00", lineHeight: 1.5, margin: "0 0 8px", fontFamily: "'Inter', sans-serif" }}>{aiSuggestions[0].suggestion}</p>
+            ) : (
+              <p style={{ fontSize: 11, color: "#8A7A50", lineHeight: 1.5, margin: "0 0 8px", fontFamily: "'Inter', sans-serif" }}>Get personalized creative suggestions based on your activity.</p>
+            )}
+            <button onClick={() => setShowAISuggest(true)} style={{ width: "100%", background: C.green, color: "#FFFFFF", border: "none", padding: "6px 0", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>Get new idea</button>
+          </Card>
+
+          {/* Footer */}
+          <div style={{ padding: "8px 4px" }}>
+            <p style={{ fontSize: 10, color: C.textMuted, fontFamily: "'Inter', sans-serif", lineHeight: 1.6 }}>
+              Elevation Club © 2026 · Elevate™<br/>
+              <span style={{ color: C.green, cursor: "pointer" }}>elevatestores.in</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── OVERLAYS ── */}
       {viewingProfile && renderUserProfile()}
       {renderNotifications()}
       {renderSearch()}
       {renderHashtagView()}
       {renderAISuggest()}
-      <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "#FFFFFF", backdropFilter: "blur(24px)", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-around", padding: "10px 4px", paddingBottom: "max(10px, env(safe-area-inset-bottom))", zIndex: 50 }}>
-        <NTab icon={Icons.Home} label="Home" id="home" />
-        <NTab icon={Icons.Bulb} label="Workspace" id="workspace" />
-        <NTab icon={Icons.Users} label="Community" id="community" />
-        <NTab icon={Icons.Settings} label="Profile" id="profile" />
-      </div>
+
       {showS && <Modal title="✦ Creative Session" onClose={() => setShowS(false)}><Session onClose={() => setShowS(false)} onSave={async (type, mins, notes) => {
         if (!authUser) return;
         await supabase.from("sessions").insert({ user_id: authUser.id, session_type: type, duration_minutes: mins, notes });
         setSessionCount(prev => prev + 1);
       }} /></Modal>}
       {showAI && <Modal title="✨ AI Assistant" onClose={() => setShowAI(false)}><div style={{ height: 420 }}><AI /></div></Modal>}
-      <style>{CSS}</style>
     </div>
   );
 }

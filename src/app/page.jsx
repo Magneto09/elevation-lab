@@ -123,10 +123,10 @@ const CIRCLES = [
   { name: "Entrepreneurs", members: 445, emoji: "🚀", g: `linear-gradient(135deg,${C.gold},${C.magenta})` },
 ];
 const FEED = [
-  { user: "luna_creates", avatar: "🌙", type: "art", caption: "Late night sketch — letting the pen flow into fractal patterns", rx: {"🙏":34,"✨":12,"🤔":8}, time: "2h" },
-  { user: "mindful_beats", avatar: "🎧", type: "music", caption: "New ambient loop from a 45-min session. Headphones on.", rx: {"🙏":67,"✨":45,"🤔":3}, time: "4h" },
-  { user: "cosmic_writer", avatar: "🔮", type: "poetry", caption: "Words that poured through during morning reflection", rx: {"🙏":23,"✨":31,"🤔":15}, time: "6h" },
-  { user: "sketch_daily", avatar: "🌀", type: "art", caption: "Challenge: Drawing my mind — more chaotic than expected", rx: {"🙏":89,"✨":22,"🤔":7}, time: "8h" },
+  { user: "luna_creates", avatar: "🌙", type: "art", caption: "Late night sketch — letting the pen flow into fractal patterns", rx: {"🙏":34,"◯":12,"🤔":8}, time: "2h" },
+  { user: "mindful_beats", avatar: "🎧", type: "music", caption: "New ambient loop from a 45-min session. Headphones on.", rx: {"🙏":67,"◯":45,"🤔":3}, time: "4h" },
+  { user: "cosmic_writer", avatar: "🔮", type: "poetry", caption: "Words that poured through during morning reflection", rx: {"🙏":23,"◯":31,"🤔":15}, time: "6h" },
+  { user: "sketch_daily", avatar: "🌀", type: "art", caption: "Challenge: Drawing my mind — more chaotic than expected", rx: {"🙏":89,"◯":22,"🤔":7}, time: "8h" },
 ];
 
 const SHOP = [
@@ -489,7 +489,7 @@ function Session({ onClose, onSave }) {
   if (done) return (
     <div style={{ padding: 24, animation: "warpIn 0.5s" }}>
       <div style={{ textAlign: "center", marginBottom: 24 }}>
-        <div style={{ fontSize: 48, marginBottom: 12, animation: "floatTrip 2s ease-in-out infinite", filter: "drop-shadow(0 0 30px rgba(0,255,204,0.6))" }}>✨</div>
+        <div style={{ fontSize: 48, marginBottom: 12, animation: "floatTrip 2s ease-in-out infinite", filter: "drop-shadow(0 0 30px rgba(0,255,204,0.6))" }}>❋</div>
         <h2 style={{ fontFamily: "'Syne', sans-serif", color: C.textPrimary, fontSize: 22, fontWeight: 700 }}>Session Complete</h2>
       </div>
       <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Log your visions..." className="input-glow" style={{ width: "100%", minHeight: 120, padding: 16, background: "rgba(237,229,216,0.8)", border: `1px solid ${C.border}`, borderRadius: 14, color: C.textPrimary, fontSize: 13, fontFamily: "'Space Mono', monospace", resize: "vertical", outline: "none", boxSizing: "border-box" }} />
@@ -878,7 +878,7 @@ export default function App() {
   // === Habits ===
   const addHabit = async (name) => {
     if (!name.trim() || !authUser) return;
-    const { data } = await supabase.from("habits").insert({ user_id: authUser.id, name, emoji: "✨" }).select().single();
+    const { data } = await supabase.from("habits").insert({ user_id: authUser.id, name, emoji: "❋" }).select().single();
     if (data) setHabits([...habits, data]);
     setNewHabit(""); setShowHabitForm(false);
   };
@@ -1491,13 +1491,13 @@ export default function App() {
           )}
         </div>
         <button onClick={() => setShowAISuggest(true)} style={{ background: "none", border: "none", cursor: "pointer", padding: 8, marginRight: 4 }}>
-          <span style={{ fontSize: 20 }}>✨</span>
+          <span style={{ fontSize: 20 }}>❋</span>
         </button>
         <button onClick={() => setShowSearch(true)} style={{ background: "none", border: "none", cursor: "pointer", padding: 8, marginRight: 4 }}>
-          <span style={{ fontSize: 20 }}>🔍</span>
+          <span style={{ fontSize: 20 }}>◯</span>
         </button>
         <button onClick={openNotifications} style={{ background: "none", border: "none", cursor: "pointer", position: "relative", padding: 8 }}>
-          <span style={{ fontSize: 22 }}>🔔</span>
+          <span style={{ fontSize: 22 }}>✦</span>
           {unreadCount > 0 && (
             <span style={{ position: "absolute", top: 2, right: 2, background: "#DC2626", color: "#fff", fontSize: 9, fontWeight: 700, minWidth: 16, height: 16, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", fontFamily: "'Inter', sans-serif" }}>{unreadCount}</span>
           )}
@@ -2564,7 +2564,7 @@ export default function App() {
             </div>
           ) : (
             notifications.map(n => {
-              const emoji = n.type === "follow" ? "👋" : n.type === "comment" ? "◯" : n.type === "reaction" ? "✨" : n.type === "badge" ? "🏆" : "✦";
+              const emoji = n.type === "follow" ? "👋" : n.type === "comment" ? "◯" : n.type === "reaction" ? "◯" : n.type === "badge" ? "🏆" : "✦";
               return (
                 <Card key={n.id} onClick={() => { if (n.actor_id) { setShowNotifications(false); openUserProfile(n.actor_id); } }} style={{ padding: 14, marginBottom: 8, borderLeft: n.is_read ? "3px solid transparent" : "3px solid #0A0A0A" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -2814,10 +2814,10 @@ export default function App() {
 
           {/* Right actions */}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button onClick={() => setShowAISuggest(true)} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "#FFFFFF", padding: "6px 10px", borderRadius: 8, fontSize: 13, cursor: "pointer" }}>✨</button>
-            <button onClick={() => setShowSearch(true)} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "#FFFFFF", padding: "6px 10px", borderRadius: 8, fontSize: 13, cursor: "pointer" }}>🔍</button>
+            <button onClick={() => setShowAISuggest(true)} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "#FFFFFF", padding: "6px 10px", borderRadius: 8, fontSize: 13, cursor: "pointer" }}>❋</button>
+            <button onClick={() => setShowSearch(true)} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "#FFFFFF", padding: "6px 10px", borderRadius: 8, fontSize: 13, cursor: "pointer" }}>◯</button>
             <button onClick={openNotifications} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "#FFFFFF", padding: "6px 10px", borderRadius: 8, fontSize: 13, cursor: "pointer", position: "relative" }}>
-              🔔
+              ✦
               {unreadCount > 0 && <span style={{ position: "absolute", top: 2, right: 2, background: "#E85D26", color: "#fff", fontSize: 8, fontWeight: 700, minWidth: 14, height: 14, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>{unreadCount}</span>}
             </button>
             <div style={{ width: 32, height: 32, borderRadius: "50%", background: C.greenAccent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: C.green, cursor: "pointer" }} onClick={() => setTab("profile")}>
@@ -2993,7 +2993,7 @@ export default function App() {
 
           {/* AI Suggest widget */}
           <Card style={{ padding: 14, background: "#FFF9E6", border: "1px solid #E8D48C" }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#7A5A00", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6, fontFamily: "'Inter', sans-serif" }}>✨ AI Suggest</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#7A5A00", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6, fontFamily: "'Inter', sans-serif" }}>❋ AI Suggest</div>
             {aiSuggestions.length > 0 ? (
               <p style={{ fontSize: 11, color: "#5A4A00", lineHeight: 1.5, margin: "0 0 8px", fontFamily: "'Inter', sans-serif" }}>{aiSuggestions[0].suggestion}</p>
             ) : (
@@ -3024,7 +3024,7 @@ export default function App() {
         await supabase.from("sessions").insert({ user_id: authUser.id, session_type: type, duration_minutes: mins, notes });
         setSessionCount(prev => prev + 1);
       }} /></Modal>}
-      {showAI && <Modal title="✨ AI Assistant" onClose={() => setShowAI(false)}><div style={{ height: 420 }}><AI /></div></Modal>}
+      {showAI && <Modal title="❋ AI Assistant" onClose={() => setShowAI(false)}><div style={{ height: 420 }}><AI /></div></Modal>}
     </div>
   );
 }

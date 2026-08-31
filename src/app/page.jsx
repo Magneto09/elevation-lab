@@ -7,29 +7,30 @@ import { supabase } from "@/lib/supabase";
 
 
 const C = {
-  bg: "#F7F4EF",
+  bg: "#F9F6F0",
   bgCard: "#FFFFFF",
-  purple: "#6B8F6B",
-  magenta: "#6B8F6B",
-  cyan: "#6B8F6B",
-  gold: "#A0785A",
-  orange: "#B8896A",
-  pink: "#D0C8B8",
-  lime: "#8AAA7A",
-  blue: "#5A7A6A",
-  red: "#B85A4A",
-  textPrimary: "#3A3A2E",
-  textSecondary: "#6A6A58",
-  textMuted: "#9A9080",
-  border: "#E0D8CC",
-  green: "#6B8F6B",
-  greenLight: "#8AAA7A",
-  greenAccent: "#5A7A5A",
-  beige: "#EDE8E0",
-  cream: "#F7F4EF",
-  stone: "#E8E2D8",
-  sage: "#6B8F6B",
-  darkSage: "#4A6A4A",
+  purple: "#2C4A35",
+  magenta: "#5A8A6A",
+  cyan: "#2C4A35",
+  gold: "#8A6A3A",
+  orange: "#A07848",
+  pink: "#C8D8C4",
+  lime: "#5A8A6A",
+  blue: "#3A6A50",
+  red: "#B85040",
+  textPrimary: "#2C4A35",
+  textSecondary: "#4A7060",
+  textMuted: "#7A9A80",
+  border: "#C8D8C4",
+  green: "#2C4A35",
+  greenLight: "#5A8A6A",
+  greenAccent: "#5A8A6A",
+  beige: "#EDE8DC",
+  cream: "#F9F6F0",
+  pine: "#2C4A35",
+  sage: "#5A8A6A",
+  lightSage: "#8AAA90",
+  parchment: "#F2EFE8",
 };
 
 const BADGES = {
@@ -47,15 +48,14 @@ const BADGES = {
 
 
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,500;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap');
 *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
-body{background:#F7F4EF;color:#3A3A2E;font-family:'Inter',sans-serif}
+body{background:#F9F6F0;color:#2C4A35;font-family:'Inter',sans-serif}
 
 .title-rainbow{
-  color:#3A3A2E;
+  color:#2C4A35;
   font-family:'Lora',serif;
   font-style:italic;
-  letter-spacing:-0.3px;
 }
 
 @keyframes warpIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
@@ -63,22 +63,22 @@ body{background:#F7F4EF;color:#3A3A2E;font-family:'Inter',sans-serif}
 @keyframes rotateSlow{from{transform:rotate(0)}to{transform:rotate(360deg)}}
 @keyframes pulseGlow{0%,100%{opacity:0.7}50%{opacity:1}}
 
-.rainbow-spin{background:conic-gradient(from 0deg,#6B8F6B,#D0C8B8,#8AAA7A,#E8E2D8,#6B8F6B);animation:rotateSlow 8s linear infinite}
-.rainbow-spin-reverse{background:conic-gradient(from 0deg,#8AAA7A,#6B8F6B,#E8E2D8,#8AAA7A);animation:rotateSlow 10s linear infinite reverse}
+.rainbow-spin{background:conic-gradient(from 0deg,#2C4A35,#C8D8C4,#5A8A6A,#EDE8DC,#2C4A35);animation:rotateSlow 8s linear infinite}
+.rainbow-spin-reverse{background:conic-gradient(from 0deg,#5A8A6A,#2C4A35,#C8D8C4,#5A8A6A);animation:rotateSlow 10s linear infinite reverse}
 
 .text-glow-pulse{animation:pulseGlow 2.5s ease-in-out infinite}
 
 .input-glow:focus{
-  border-color:#6B8F6B !important;
-  box-shadow:0 0 0 3px rgba(107,143,107,0.12) !important;
+  border-color:#5A8A6A !important;
+  box-shadow:0 0 0 3px rgba(90,138,106,0.12) !important;
   outline:none;
 }
 
-input::placeholder,textarea::placeholder{color:#B8B0A4}
+input::placeholder,textarea::placeholder{color:#A8C0AC}
 ::-webkit-scrollbar{width:5px}
-::-webkit-scrollbar-track{background:#EDE8E0}
-::-webkit-scrollbar-thumb{background:#C8C0B0;border-radius:4px}
-::-webkit-scrollbar-thumb:hover{background:#6B8F6B}
+::-webkit-scrollbar-track{background:#EDE8DC}
+::-webkit-scrollbar-thumb{background:#C8D8C4;border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:#5A8A6A}
 `;
 
 
@@ -284,10 +284,10 @@ function Card({ children, style = {}, onClick, intense }) {
     <div onClick={onClick}
       onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
       style={{
-        background: intense ? "#FFFFFF" : "#FFFFFF",
+        background: "#FFFFFF",
         borderRadius: 10, position: "relative",
-        border: `1px solid ${h && onClick ? "#6B8F6B" : "#E0D8CC"}`,
-        boxShadow: h && onClick ? "0 4px 14px rgba(107,143,107,0.12)" : "0 1px 3px rgba(58,58,46,0.05)",
+        border: `1px solid ${h && onClick ? "#5A8A6A" : "#C8D8C4"}`,
+        boxShadow: h && onClick ? "0 4px 14px rgba(44,74,53,0.1)" : "0 1px 3px rgba(44,74,53,0.05)",
         transition: "all 0.2s ease",
         cursor: onClick ? "pointer" : "default",
         overflow: "hidden", ...style,
@@ -1462,8 +1462,8 @@ export default function App() {
   if (scr === "onboard") return (<div style={{ background: C.bg, minHeight: "100vh" }}><TripBg /><Onboarding onComplete={n => { setUser(n); setScr("app"); }} /><style>{CSS}</style></div>);
 
   const Modal = ({ children, onClose, title }) => (
-    <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(58,58,46,0.35)", backdropFilter: "blur(16px)", display: "flex", alignItems: "flex-end", justifyContent: "center", animation: "fadeIn 0.2s" }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, maxHeight: "85vh", background: "linear-gradient(180deg,#FAFAF7,#F7F4EF)", borderRadius: "22px 22px 0 0", border: `1px solid ${C.border}`, borderBottom: "none", overflow: "auto", animation: "slideUp 0.4s cubic-bezier(.25,.8,.25,1)", backdropFilter: "blur(20px)" }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(44,74,53,0.35)", backdropFilter: "blur(16px)", display: "flex", alignItems: "flex-end", justifyContent: "center", animation: "fadeIn 0.2s" }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 480, maxHeight: "85vh", background: "linear-gradient(180deg,#FDFCF8,#F9F6F0)", borderRadius: "22px 22px 0 0", border: `1px solid ${C.border}`, borderBottom: "none", overflow: "auto", animation: "slideUp 0.4s cubic-bezier(.25,.8,.25,1)", backdropFilter: "blur(20px)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: `1px solid ${C.border}` }}>
           <span style={{ color: C.textPrimary, fontWeight: 700, fontFamily: "'Syne', sans-serif", fontSize: 15 }}>{title}</span>
           <button onClick={onClose} style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", width: 24, height: 24 }}><Icons.X /></button>
@@ -1828,7 +1828,7 @@ export default function App() {
                 <div key={wi} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                   {week.map((day, di) => {
                     const c = day.count;
-                    const bg = c === 0 ? "#EDE8E0" : c === 1 ? "#D8E8D0" : c === 2 ? "#B8D4B0" : c <= 4 ? "#8AAA7A" : "#4A6A4A";
+                    const bg = c === 0 ? "#EDE8DC" : c === 1 ? "#C8D8C4" : c === 2 ? "#A8C4A8" : c <= 4 ? "#5A8A6A" : "#2C4A35";
                     return <div key={di} title={day.date + ": " + c + " events"} style={{ width: 16, height: 16, borderRadius: 3, background: bg }} />;
                   })}
                 </div>
@@ -1884,7 +1884,7 @@ export default function App() {
                     <span style={{ color: C.textMuted, fontSize: 11, fontFamily: "'Inter', sans-serif" }}>{h.pct}%</span>
                   </div>
                   <div style={{ height: 6, background: "#F3F4F6", borderRadius: 3, overflow: "hidden" }}>
-                    <div style={{ width: h.pct + "%", height: "100%", background: h.pct >= 80 ? "#6B8F6B" : h.pct >= 50 ? "#A0785A" : "#B85A4A", transition: "width 0.3s" }} />
+                    <div style={{ width: h.pct + "%", height: "100%", background: h.pct >= 80 ? "#5A8A6A" : h.pct >= 50 ? "#8A6A3A" : "#B85040", transition: "width 0.3s" }} />
                   </div>
                 </div>
               ))
@@ -2113,7 +2113,7 @@ export default function App() {
               <button onClick={() => deleteGoal(g.id)} style={{ background: "none", border: "none", color: C.textMuted, fontSize: 16, cursor: "pointer" }}>×</button>
             </div>
             <div style={{ height: 6, background: "#F3F4F6", borderRadius: 3, overflow: "hidden", marginBottom: 10 }}>
-              <div style={{ height: "100%", width: pct + "%", background: done ? "#6B8F6B" : "#4A6A4A", transition: "width 0.3s ease" }} />
+              <div style={{ height: "100%", width: pct + "%", background: done ? "#5A8A6A" : "#2C4A35", transition: "width 0.3s ease" }} />
             </div>
             <div style={{ display: "flex", gap: 6 }}>
               <button onClick={() => updateGoalProgress(g.id, -1)} style={{ flex: 1, padding: "6px", background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 6, color: C.textPrimary, fontSize: 13, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>−1</button>
@@ -2780,7 +2780,7 @@ export default function App() {
       <style>{CSS}</style>
 
       {/* ── TOP NAV BAR ── */}
-      <div style={{ position: "sticky", top: 0, zIndex: 100, background: "#6B8F6B", boxShadow: "0 1px 4px rgba(58,58,46,0.12)" }}>
+      <div style={{ position: "sticky", top: 0, zIndex: 100, background: "#2C4A35", boxShadow: "0 1px 6px rgba(44,74,53,0.15)" }}>
         <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", height: 48 }}>
           {/* Logo */}
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -2836,7 +2836,7 @@ export default function App() {
 
           {/* Profile card */}
           <Card style={{ overflow: "hidden" }}>
-            <div style={{ background: "#6B8F6B", height: 50, position: "relative" }}>
+            <div style={{ background: "#2C4A35", height: 50, position: "relative" }}>
               <div style={{ position: "absolute", bottom: -18, left: 16, width: 36, height: 36, background: C.greenAccent, borderRadius: "50%", border: "3px solid #FFFFFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: C.green }}>{user?.[0]?.toUpperCase() || "?"}</div>
             </div>
             <div style={{ padding: "22px 14px 14px" }}>
@@ -2861,7 +2861,7 @@ export default function App() {
 
           {/* Nav menu */}
           <Card style={{ overflow: "hidden" }}>
-            <div style={{ background: "#6B8F6B", padding: "7px 12px" }}>
+            <div style={{ background: "#2C4A35", padding: "7px 12px" }}>
               <span style={{ color: "#FFFFFF", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: "'Inter', sans-serif" }}>Navigate</span>
             </div>
             <div style={{ padding: "6px 0" }}>
@@ -2902,7 +2902,7 @@ export default function App() {
           {/* My Badges */}
           {myBadges.length > 0 && (
             <Card style={{ overflow: "hidden" }}>
-              <div style={{ background: "#6B8F6B", padding: "7px 12px" }}>
+              <div style={{ background: "#2C4A35", padding: "7px 12px" }}>
                 <span style={{ color: "#FFFFFF", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: "'Inter', sans-serif" }}>My Badges</span>
               </div>
               <div style={{ padding: 12, display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -2916,7 +2916,7 @@ export default function App() {
           {/* My Circles */}
           {myCircles.length > 0 && (
             <Card style={{ overflow: "hidden" }}>
-              <div style={{ background: "#6B8F6B", padding: "7px 12px" }}>
+              <div style={{ background: "#2C4A35", padding: "7px 12px" }}>
                 <span style={{ color: "#FFFFFF", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: "'Inter', sans-serif" }}>My Circles</span>
               </div>
               <div style={{ padding: "6px 0" }}>
@@ -2940,11 +2940,11 @@ export default function App() {
 
           {/* Quick post composer */}
           <Card style={{ overflow: "hidden" }}>
-            <div style={{ background: "#6B8F6B", padding: "7px 12px" }}>
+            <div style={{ background: "#2C4A35", padding: "7px 12px" }}>
               <span style={{ color: "#FFFFFF", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: "'Inter', sans-serif" }}>Share something</span>
             </div>
             <div style={{ padding: 12 }}>
-              <textarea value={newPost} onChange={e => setNewPost(e.target.value)} placeholder="What are you creating today?" rows={3} style={{ width: "100%", padding: "8px 10px", background: "#EDE8E0", border: `1px solid ${C.border}`, borderRadius: 6, color: C.textPrimary, fontSize: 12, fontFamily: "'Inter', sans-serif", outline: "none", boxSizing: "border-box", resize: "none", marginBottom: 8 }} />
+              <textarea value={newPost} onChange={e => setNewPost(e.target.value)} placeholder="What are you creating today?" rows={3} style={{ width: "100%", padding: "8px 10px", background: "#EDE8DC", border: `1px solid ${C.border}`, borderRadius: 6, color: C.textPrimary, fontSize: 12, fontFamily: "'Inter', sans-serif", outline: "none", boxSizing: "border-box", resize: "none", marginBottom: 8 }} />
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <label style={{ background: "#EAE4D8", color: C.textSecondary, padding: "4px 10px", borderRadius: 6, fontSize: 11, cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>
                   📷
@@ -2958,7 +2958,7 @@ export default function App() {
           {/* Trending hashtags */}
           {trendingHashtags.length > 0 && (
             <Card style={{ overflow: "hidden" }}>
-              <div style={{ background: "#6B8F6B", padding: "7px 12px" }}>
+              <div style={{ background: "#2C4A35", padding: "7px 12px" }}>
                 <span style={{ color: "#FFFFFF", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: "'Inter', sans-serif" }}>Trending</span>
               </div>
               <div style={{ padding: "8px 0" }}>
@@ -2975,7 +2975,7 @@ export default function App() {
           {/* Suggested creators */}
           {suggestedUsers.filter(u => !myFollowingIds.includes(u.id)).length > 0 && (
             <Card style={{ overflow: "hidden" }}>
-              <div style={{ background: "#6B8F6B", padding: "7px 12px" }}>
+              <div style={{ background: "#2C4A35", padding: "7px 12px" }}>
                 <span style={{ color: "#FFFFFF", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", fontFamily: "'Inter', sans-serif" }}>People you may know</span>
               </div>
               <div style={{ padding: "6px 0" }}>

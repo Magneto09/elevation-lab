@@ -563,6 +563,7 @@ function AI() {
 export default function App() {
   const [scr, setScr] = useState("loading");
   const [tab, setTab] = useState("home");
+  const [viewMode, setViewMode] = useState("auto"); // "auto" | "desktop" | "mobile"
   const [wsTab, setWsTab] = useState("ideas");
   const [commTab, setCommTab] = useState("feed");
   const [habits, setHabits] = useState([]);
@@ -656,6 +657,20 @@ export default function App() {
   const [profilePage, setProfilePage] = useState(null);
   const [editName, setEditName] = useState("");
   const [editBio, setEditBio] = useState("");
+
+  // Auto-detect view mode on load
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const isMobile = window.innerWidth < 768;
+      setViewMode(isMobile ? "mobile" : "desktop");
+      const handler = () => setViewMode(prev => {
+        // Only auto-switch if user hasn't manually set it
+        return window.innerWidth < 768 ? "mobile" : "desktop";
+      });
+      window.addEventListener("resize", handler);
+      return () => window.removeEventListener("resize", handler);
+    }
+  }, []);
 
   // Check auth on load
   useEffect(() => {
@@ -2821,6 +2836,10 @@ export default function App() {
               ✦
               {unreadCount > 0 && <span style={{ position: "absolute", top: 2, right: 2, background: "#E85D26", color: "#fff", fontSize: 8, fontWeight: 700, minWidth: 14, height: 14, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>{unreadCount}</span>}
             </button>
+            <button onClick={() => setViewMode(v => v === "mobile" ? "desktop" : "mobile")} title="Switch view" style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#FFFFFF", padding: "5px 10px", borderRadius: 8, fontSize: 11, cursor: "pointer", fontFamily: "'Inter', sans-serif", display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ fontSize: 12 }}>{viewMode === "mobile" ? "⬡" : "◬"}</span>
+              <span>{viewMode === "mobile" ? "Desktop" : "Mobile"}</span>
+            </button>
             <div style={{ width: 32, height: 32, borderRadius: "50%", background: C.greenAccent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: C.green, cursor: "pointer" }} onClick={() => setTab("profile")}>
               {user?.[0]?.toUpperCase() || "?"}
             </div>
@@ -2828,8 +2847,37 @@ export default function App() {
         </div>
       </div>
 
-      {/* ── 3-COLUMN LAYOUT ── */}
-      <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 16, padding: "16px 20px 40px", position: "relative", zIndex: 1 }}>
+      {/* ── VIEW MODE: 3-COLUMN (DESKTOP) or MOBILE ── */}
+      {viewMode === "mobile" ? (
+        /* ── MOBILE LAYOUT ── */
+        <div style={{ maxWidth: 480, margin: "0 auto", position: "relative", zIndex: 1 }}>
+          <div style={{ position: "relative", zIndex: 1, paddingBottom: 80 }}>{renderMainContent()}</div>
+          {/* Mobile bottom nav */}
+          <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "#2C4A35", borderTop: "1px solid #1E3A28", display: "flex", justifyContent: "space-around", padding: "10px 4px", paddingBottom: "max(10px, env(safe-area-inset-bottom))", zIndex: 50 }}>
+            {[
+              { id: "home", icon: "◯", label: "Home" },
+              { id: "workspace", icon: "△", label: "Work" },
+              { id: "community", icon: "⊕", label: "Community" },
+              { id: "profile", icon: "◈", label: "Profile" },
+            ].map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)} style={{
+                background: "none", border: "none", cursor: "pointer", padding: "4px 12px",
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+              }}>
+                <span style={{ fontSize: 18, color: tab === t.id ? "#C8D8C4" : "rgba(255,255,255,0.45)" }}>{t.icon}</span>
+                <span style={{ fontSize: 9, color: tab === t.id ? "#C8D8C4" : "rgba(255,255,255,0.45)", fontFamily: "'Inter', sans-serif", letterSpacing: "0.04em" }}>{t.label}</span>
+                {tab === t.id && <div style={{ width: 16, height: 2, background: "#C8D8C4", borderRadius: 1 }} />}
+              </button>
+            ))}
+          </div>
+          {/* Mobile view toggle FAB */}
+          <button onClick={() => setViewMode("desktop")} style={{ position: "fixed", bottom: 80, right: 16, background: "#2C4A35", color: "#C8D8C4", border: "1px solid #5A8A6A", borderRadius: 20, padding: "6px 12px", fontSize: 11, cursor: "pointer", fontFamily: "'Inter', sans-serif", display: "flex", alignItems: "center", gap: 5, boxShadow: "0 2px 8px rgba(44,74,53,0.3)", zIndex: 50 }}>
+            <span>◬</span> Desktop
+          </button>
+        </div>
+      ) : (
+        /* ── DESKTOP 3-COLUMN LAYOUT ── */
+        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 16, padding: "16px 20px 40px", position: "relative", zIndex: 1 }}>
 
         {/* ── LEFT SIDEBAR ── */}
         <div style={{ width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: 10 }}>
@@ -3012,6 +3060,8 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      )} {/* end viewMode conditional */}
 
       {/* ── OVERLAYS ── */}
       {viewingProfile && renderUserProfile()}
